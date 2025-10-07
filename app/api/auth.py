@@ -5,12 +5,13 @@ from datetime import timedelta
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse
+from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse, RefreshTokenRequest
 from app.services.auth_service import (
     get_password_hash,
     verify_password,
     create_access_token,
-    create_refresh_token
+    create_refresh_token,
+    verify_token
 )
 from app.config import settings
 from app.middleware.auth_middleware import get_current_user
@@ -82,6 +83,45 @@ def login(
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+@router.post("/refresh", response_model=Token)
+def refresh_token(token_request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """리프레시 토큰으로 새 액세스 토큰 발급"""
+    # 리프레시 토큰 검증
+    token_data = verify_token(token_request.refresh_token)
+
+    if token_data is None or token_data.email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 리프레시 토큰입니다"
+        )
+
+    # 사용자 존재 확인
+    user = db.query(User).filter(User.email == token_data.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="사용자를 찾을 수 없습니다"
+        )
+
+    # 새 토큰 발급
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=access_token_expires
+    )
+
+    refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    new_refresh_token = create_refresh_token(
+        data={"sub": user.email},
+        expires_delta=refresh_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
         "token_type": "bearer"
     }
 
