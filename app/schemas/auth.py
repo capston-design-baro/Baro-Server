@@ -6,7 +6,8 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     name: str
-    
+    address: str
+
     @field_validator('password')
     def validate_password(cls, v):
         if len(v) < 8:
@@ -21,7 +22,11 @@ class UserLogin(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -30,7 +35,8 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: str
+    address: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
