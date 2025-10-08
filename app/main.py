@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.models import SecuritySchemeType, HTTPBearer, HTTPBase
 from fastapi.security import HTTPBearer as HTTPBearerSecurity
-from app.api import test, auth
+from app.api import test, auth, complaint
+from app.models import user, complaint as complaint_model
 from app.database import engine, Base
 
 # 데이터베이스 테이블 생성
@@ -26,6 +27,7 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(test.router)
 app.include_router(auth.router)
+app.include_router(complaint.router)
 
 @app.get("/")
 def read_root():
