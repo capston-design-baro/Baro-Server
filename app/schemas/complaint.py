@@ -6,6 +6,12 @@ from datetime import datetime
 class ComplaintCreate(BaseModel):
     offense: str  # "fraud" or "insult"
 
+# 고소인 정보 입력
+class ComplainantInfoCreate(BaseModel):
+    complainant_name: str
+    complainant_address: str
+    complainant_phone: str
+
 # 사건 정보 업데이트
 class ComplaintUpdate(BaseModel):
     accused_name: Optional[str] = None

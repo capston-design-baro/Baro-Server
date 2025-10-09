@@ -8,7 +8,7 @@ from app.models.complaint import Complaint
 from app.schemas.complaint import (
     ComplaintCreate, ComplaintResponse, ComplaintStartResponse, ComplaintDetail,
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
-    ChatMessageCreate, ChatResponse
+    ChatMessageCreate, ChatResponse, ComplainantInfoCreate
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
