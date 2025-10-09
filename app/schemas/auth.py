@@ -7,6 +7,7 @@ class UserRegister(BaseModel):
     password: str
     name: str
     address: str
+    phone_number: str
 
     @field_validator('password')
     def validate_password(cls, v):
@@ -36,6 +37,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     address: str
+    phone_number: str
     created_at: datetime
 
     class Config:
