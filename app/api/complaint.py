@@ -16,15 +16,52 @@ from app.services.ai_service import ai_service
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 
-@router.post("/start", response_model=ComplaintStartResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/info/complainant", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
+def register_complainant_info(
+    request: ComplainantInfoCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """고소인 정보 등록 - Complaint 생성 및 complaint_id 반환"""
+
+    # Complaint 생성 (고소인 정보만 포함, crime_type은 나중에 설정)
+    new_complaint = Complaint(
+        user_id=current_user.id,
+        status="in_progress",
+        complainant_name=request.complainant_name,
+        complainant_address=request.complainant_address,
+        complainant_phone=request.complainant_phone
+    )
+
+    db.add(new_complaint)
+    db.commit()
+    db.refresh(new_complaint)
+
+    return new_complaint
+
+
+@router.post("/{complaint_id}/start", response_model=ComplaintStartResponse, status_code=status.HTTP_200_OK)
 async def start_complaint(
+    complaint_id: int,
     request: ComplaintCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """고소장 작성 시작 - Baro-AI 세션 초기화"""
+    """고소장 AI 세션 시작 - 기존 Complaint에 범죄 유형 및 AI 세션 연결"""
 
-    # 1. Baro-AI 채팅 세션 초기화
+    # 1. 기존 complaint 조회 및 권한 확인
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    if complaint.ai_session_id:
+        raise HTTPException(status_code=400, detail="이미 AI 세션이 시작된 고소장입니다")
+
+    # 2. Baro-AI 채팅 세션 초기화
     try:
         ai_response = await ai_service.chat_init(request.offense)
         session_id = ai_response.get("session_id")
@@ -35,26 +72,21 @@ async def start_complaint(
             detail=f"AI 서비스 연결 실패: {str(e)}"
         )
 
-    # 2. DB에 고소장 생성 및 세션 ID 저장
-    new_complaint = Complaint(
-        user_id=current_user.id,
-        crime_type=request.offense,
-        status="in_progress",
-        ai_session_id=session_id
-    )
+    # 3. Complaint 업데이트 (crime_type, ai_session_id 설정)
+    complaint.crime_type = request.offense
+    complaint.ai_session_id = session_id
 
-    db.add(new_complaint)
     db.commit()
-    db.refresh(new_complaint)
+    db.refresh(complaint)
 
-    # 3. 응답에 첫 질문 포함
+    # 4. 응답에 첫 질문 포함
     return ComplaintStartResponse(
-        id=new_complaint.id,
-        user_id=new_complaint.user_id,
-        status=new_complaint.status,
-        crime_type=new_complaint.crime_type,
-        created_at=new_complaint.created_at,
-        ai_session_id=new_complaint.ai_session_id,
+        id=complaint.id,
+        user_id=complaint.user_id,
+        status=complaint.status,
+        crime_type=complaint.crime_type,
+        created_at=complaint.created_at,
+        ai_session_id=complaint.ai_session_id,
         first_question=first_question
     )
 
