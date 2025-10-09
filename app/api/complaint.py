@@ -54,6 +54,7 @@ async def start_complaint(
         status=new_complaint.status,
         crime_type=new_complaint.crime_type,
         created_at=new_complaint.created_at,
+        ai_session_id=new_complaint.ai_session_id,
         first_question=first_question
     )
 
