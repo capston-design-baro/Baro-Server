@@ -54,6 +54,7 @@ async def start_complaint(
         status=new_complaint.status,
         crime_type=new_complaint.crime_type,
         created_at=new_complaint.created_at,
+        ai_session_id=new_complaint.ai_session_id,
         first_question=first_question
     )
 
@@ -69,9 +70,10 @@ def get_my_complaints(
 
     return complaints
 
-@router.post("/{complaint_id}/chat", response_model=ChatResponse)
+@router.post("/{complaint_id}/chat/{ai_session_id}", response_model=ChatResponse)
 async def send_chat_message(
     complaint_id: int,
+    ai_session_id: str,
     request: ChatMessageCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -87,13 +89,14 @@ async def send_chat_message(
     if not complaint:
         raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
 
-    if not complaint.ai_session_id:
-        raise HTTPException(status_code=400, detail="AI 세션이 초기화되지 않았습니다")
+    # 2. ai_session_id 검증 (보안: 해당 complaint의 세션인지 확인)
+    if complaint.ai_session_id != ai_session_id:
+        raise HTTPException(status_code=403, detail="유효하지 않은 세션 ID입니다")
 
-    # 2. Baro-AI에 메시지 전송
+    # 3. Baro-AI에 메시지 전송
     try:
         ai_response = await ai_service.chat_send(
-            session_id=complaint.ai_session_id,
+            session_id=ai_session_id,
             message=request.message
         )
     except Exception as e:
@@ -102,11 +105,9 @@ async def send_chat_message(
             detail=f"AI 서비스 연결 실패: {str(e)}"
         )
 
-    # 3. 응답 반환
+    # 4. 응답 반환
     return ChatResponse(
-        reply=ai_response.get("reply", ""),
-        caution=ai_response.get("caution", False),
-        progress=ai_response.get("progress", {})
+        reply=ai_response.get("reply", "")
     )
 
 @router.post("/{complaint_id}/generate", response_model=ComplaintGenerateResponse)

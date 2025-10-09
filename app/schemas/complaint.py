@@ -31,8 +31,6 @@ class ChatMessageResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str  # AI 응답 메시지
-    caution: bool  # 전문가 상담 필요 여부
-    progress: Dict[str, Any] = Field(default_factory=dict)  # 진행 상황 및 추출된 정보
 
 # 고소장 응답
 class ComplaintResponse(BaseModel):
@@ -52,6 +50,7 @@ class ComplaintStartResponse(BaseModel):
     status: str
     crime_type: Optional[str]
     created_at: datetime
+    ai_session_id: Optional[str]  # Baro-AI 세션 ID
     first_question: str  # Baro-AI에서 받은 첫 질문
 
     class Config:
