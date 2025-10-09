@@ -104,9 +104,7 @@ async def send_chat_message(
 
     # 3. 응답 반환
     return ChatResponse(
-        reply=ai_response.get("reply", ""),
-        caution=ai_response.get("caution", False),
-        progress=ai_response.get("progress", {})
+        reply=ai_response.get("reply", "")
     )
 
 @router.post("/{complaint_id}/generate", response_model=ComplaintGenerateResponse)
