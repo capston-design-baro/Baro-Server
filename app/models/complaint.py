@@ -13,6 +13,11 @@ class Complaint(Base):
     status = Column(String, default="in_progress")  # 'in_progress', 'completed'
     crime_type = Column(String, nullable=True)  # 'fraud', 'insult'
 
+    # 고소인 정보
+    complainant_name = Column(String, nullable=True)
+    complainant_address = Column(Text, nullable=True)
+    complainant_phone = Column(String, nullable=True)
+
     # 피고소인 정보 
     accused_name = Column(String, nullable=True)
     accused_address = Column(Text, nullable=True)
