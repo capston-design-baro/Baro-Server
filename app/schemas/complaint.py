@@ -12,6 +12,12 @@ class ComplainantInfoCreate(BaseModel):
     complainant_address: str
     complainant_phone: str
 
+# 피고소인 정보 입력
+class AccusedInfoCreate(BaseModel):
+    accused_name: str
+    accused_address: str
+    accused_phone: str
+
 # 사건 정보 업데이트
 class ComplaintUpdate(BaseModel):
     accused_name: Optional[str] = None
