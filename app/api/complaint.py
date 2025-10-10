@@ -8,7 +8,7 @@ from app.models.complaint import Complaint
 from app.schemas.complaint import (
     ComplaintCreate, ComplaintResponse, ComplaintStartResponse, ComplaintDetail,
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
-    ChatMessageCreate, ChatResponse, ComplainantInfoCreate
+    ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
@@ -38,6 +38,35 @@ def register_complainant_info(
     db.refresh(new_complaint)
 
     return new_complaint
+
+
+@router.post("/info/accused/{complaint_id}", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
+def register_accused_info(
+    complaint_id: int,
+    request: AccusedInfoCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """피고소인 정보 등록 - 기존 Complaint에 피고소인 정보 추가"""
+
+    # Complaint 조회 및 권한 확인
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    # 피고소인 정보 업데이트
+    complaint.accused_name = request.accused_name
+    complaint.accused_address = request.accused_address
+    complaint.accused_phone = request.accused_phone
+
+    db.commit()
+    db.refresh(complaint)
+
+    return complaint
 
 
 @router.post("/{complaint_id}/start", response_model=ComplaintStartResponse, status_code=status.HTTP_200_OK)
