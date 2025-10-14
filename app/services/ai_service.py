@@ -9,7 +9,7 @@ class BaroAIService:
 
     def __init__(self):
         self.base_url = settings.BARO_AI_URL
-        self.timeout = 30.0
+        self.timeout = 200.0
 
     async def chat_init(self, offense: str) -> Dict[str, Any]:
         """
