@@ -105,7 +105,10 @@ class BaroAIService:
             {
                 "offense": str,
                 "title": str,
-                "draft": str  # 생성된 고소장
+                "sections": {
+                    "criminal_facts": str,  # 범죄사실
+                    "accusation_reason": str  # 고소이유
+                }
             }
         """
         try:

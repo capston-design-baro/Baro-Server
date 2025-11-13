@@ -42,7 +42,8 @@ class ChatMessageResponse(BaseModel):
     timestamp: str
 
 class ChatResponse(BaseModel):
-    reply: str  # AI 응답 메시지
+    reply: str  # AI 응답 메시지 (질문)
+    reason: Optional[str] = None  # 재질문 이유
 
 # 고소장 응답
 class ComplaintResponse(BaseModel):
@@ -102,5 +103,6 @@ class ComplaintGenerateRequest(BaseModel):
 # 최종 고소장 응답
 class ComplaintGenerateResponse(BaseModel):
     complaint_id: int
-    generated_complaint: str  # 복호화된 최종 고소장
+    criminal_facts: str  # 범죄사실
+    accusation_reason: str  # 고소이유
     status: str
