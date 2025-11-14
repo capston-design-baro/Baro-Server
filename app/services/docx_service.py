@@ -187,25 +187,27 @@ class ComplaintDocxService:
         merged_cell = row.cells[1].merge(row.cells[2]).merge(row.cells[3])
         merged_cell.text = info.get('address', '')
 
-        # 3행: 직업, 회사원, 사무실주소 (병합 없음)
+        # 3행: 직업, 사무실주소
         row = table.rows[2]
         row.cells[0].text = "직    업"
-        row.cells[1].text = "회사원"
+        row.cells[1].text = info.get('job', '')
         row.cells[2].text = "사무실\n주소"
-        row.cells[3].text = ""
+        row.cells[3].text = info.get('office_address', '')
 
         # 4행: 전화 (병합)
         row = table.rows[3]
         row.cells[0].text = "전    화"
         merged_cell = row.cells[1].merge(row.cells[2]).merge(row.cells[3])
         phone = info.get('phone', '')
-        merged_cell.text = f"(휴대폰) {phone} (자택) {phone} (사무실) {phone}"
+        home_phone = info.get('home_phone', '')
+        office_phone = info.get('office_phone', '')
+        merged_cell.text = f"(휴대폰) {phone} (자택) {home_phone} (사무실) {office_phone}"
 
         # 5행: 이메일 (병합)
         row = table.rows[4]
         row.cells[0].text = "이메일"
         merged_cell = row.cells[1].merge(row.cells[2]).merge(row.cells[3])
-        merged_cell.text = info.get('email', 'kny2383@gmail.com')
+        merged_cell.text = info.get('email', '')
         # 왼쪽 정렬
         for paragraph in merged_cell.paragraphs:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -247,12 +249,12 @@ class ComplaintDocxService:
         merged_cell = row.cells[1].merge(row.cells[2]).merge(row.cells[3])
         merged_cell.text = info.get('address', '')
 
-        # 3행: 직업, 사무실주소 라벨 (고소인과 동일한 구조)
+        # 3행: 직업, 사무실주소
         row = table.rows[2]
         row.cells[0].text = "직    업"
-        row.cells[1].text = ""  # 직업 값
+        row.cells[1].text = info.get('job', '')
         row.cells[2].text = "사무실\n주소"
-        row.cells[3].text = ""  # 사무실 주소 값
+        row.cells[3].text = info.get('office_address', '')
 
         # 4행: 전화 (병합)
         row = table.rows[3]
@@ -265,7 +267,7 @@ class ComplaintDocxService:
         row = table.rows[4]
         row.cells[0].text = "이메일"
         merged_cell = row.cells[1].merge(row.cells[2]).merge(row.cells[3])
-        merged_cell.text = info.get('email', 'leesagi@exam.com')
+        merged_cell.text = info.get('email', '')
         # 왼쪽 정렬
         for paragraph in merged_cell.paragraphs:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -274,7 +276,7 @@ class ComplaintDocxService:
         row = table.rows[5]
         row.cells[0].text = "기타사항"
         merged_cell = row.cells[1].merge(row.cells[2]).merge(row.cells[3])
-        merged_cell.text = info.get('etc', '고소인과의 관계: 지인')
+        merged_cell.text = info.get('etc', '')
         # 왼쪽 정렬
         for paragraph in merged_cell.paragraphs:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
