@@ -16,12 +16,20 @@ class Complaint(Base):
     # 고소인 정보
     complainant_name = Column(String, nullable=True)
     complainant_address = Column(Text, nullable=True)
-    complainant_phone = Column(String, nullable=True)
+    complainant_office_address = Column(Text, nullable=True)  # 사무실 주소
+    complainant_job = Column(String, nullable=True)  # 직업
+    complainant_phone = Column(String, nullable=True)  # 휴대폰
+    complainant_home_phone = Column(String, nullable=True)  # 자택 전화
+    complainant_office_phone = Column(String, nullable=True)  # 사무실 전화
 
-    # 피고소인 정보 
+    # 피고소인 정보
     accused_name = Column(String, nullable=True)
     accused_address = Column(Text, nullable=True)
+    accused_office_address = Column(Text, nullable=True)  # 사무실 주소
+    accused_job = Column(String, nullable=True)  # 직업
     accused_phone = Column(String, nullable=True)
+    accused_email = Column(String, nullable=True)  # 이메일
+    accused_etc = Column(Text, nullable=True)  # 기타사항
     
     # 사건 정보
     crime_fact = Column(Text, nullable=True)  # 범죄사실

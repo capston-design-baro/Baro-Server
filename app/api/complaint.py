@@ -32,7 +32,11 @@ def register_complainant_info(
         status="in_progress",
         complainant_name=request.complainant_name,
         complainant_address=request.complainant_address,
-        complainant_phone=request.complainant_phone
+        complainant_office_address=request.complainant_office_address,
+        complainant_job=request.complainant_job,
+        complainant_phone=request.complainant_phone,
+        complainant_home_phone=request.complainant_home_phone,
+        complainant_office_phone=request.complainant_office_phone
     )
 
     db.add(new_complaint)
@@ -63,7 +67,11 @@ def register_accused_info(
     # 피고소인 정보 업데이트
     complaint.accused_name = request.accused_name
     complaint.accused_address = request.accused_address
+    complaint.accused_office_address = request.accused_office_address
+    complaint.accused_job = request.accused_job
     complaint.accused_phone = request.accused_phone
+    complaint.accused_email = request.accused_email
+    complaint.accused_etc = request.accused_etc
 
     db.commit()
     db.refresh(complaint)
@@ -267,13 +275,22 @@ def download_complaint_docx(
     complainant_info = {
         "name": complaint.complainant_name,
         "address": complaint.complainant_address or "",
-        "phone": complaint.complainant_phone or ""
+        "office_address": complaint.complainant_office_address or "",
+        "job": complaint.complainant_job or "",
+        "phone": complaint.complainant_phone or "",
+        "home_phone": complaint.complainant_home_phone or "",
+        "office_phone": complaint.complainant_office_phone or "",
+        "email": current_user.email  # User 테이블에서 이메일 가져오기
     }
 
     accused_info = {
         "name": complaint.accused_name,
         "address": complaint.accused_address or "",
-        "phone": complaint.accused_phone or ""
+        "office_address": complaint.accused_office_address or "",
+        "job": complaint.accused_job or "",
+        "phone": complaint.accused_phone or "",
+        "email": complaint.accused_email or "",
+        "etc": complaint.accused_etc or ""
     }
 
     try:
