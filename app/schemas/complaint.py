@@ -26,6 +26,12 @@ class AccusedInfoCreate(BaseModel):
     accused_email: Optional[str] = None  # 이메일
     accused_etc: Optional[str] = None  # 기타사항
 
+# 관련사건 정보 입력
+class RelatedCasesCreate(BaseModel):
+    duplicate_complaint: bool  # 중복 고소 여부
+    related_criminal_case: bool  # 관련 형사사건 수사 유무
+    related_civil_case: bool  # 관련 민사소송 유무
+
 # 사건 정보 업데이트
 class ComplaintUpdate(BaseModel):
     accused_name: Optional[str] = None

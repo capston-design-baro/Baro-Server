@@ -9,7 +9,8 @@ from app.models.complaint import Complaint
 from app.schemas.complaint import (
     ComplaintCreate, ComplaintResponse, ComplaintStartResponse, ComplaintDetail,
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
-    ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate
+    ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate,
+    RelatedCasesCreate
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
@@ -72,6 +73,35 @@ def register_accused_info(
     complaint.accused_phone = request.accused_phone
     complaint.accused_email = request.accused_email
     complaint.accused_etc = request.accused_etc
+
+    db.commit()
+    db.refresh(complaint)
+
+    return complaint
+
+
+@router.post("/info/related-cases/{complaint_id}", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
+def register_related_cases(
+    complaint_id: int,
+    request: RelatedCasesCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """관련사건 정보 등록 - 중복고소, 관련형사사건, 관련민사소송 여부"""
+
+    # Complaint 조회 및 권한 확인
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    # 관련사건 정보 업데이트
+    complaint.duplicate_complaint = request.duplicate_complaint
+    complaint.related_criminal_case = request.related_criminal_case
+    complaint.related_civil_case = request.related_civil_case
 
     db.commit()
     db.refresh(complaint)
