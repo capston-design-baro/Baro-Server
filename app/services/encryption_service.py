@@ -19,5 +19,18 @@ class EncryptionService:
         decrypted = self.cipher.decrypt(encrypted_data)
         return json.loads(decrypted.decode('utf-8'))
 
+    def encrypt_field(self, data: str) -> bytes:
+        """개별 필드(문자열)를 암호화"""
+        if not data:
+            return None
+        return self.cipher.encrypt(data.encode('utf-8'))
+
+    def decrypt_field(self, encrypted_data: bytes) -> str:
+        """암호화된 필드를 복호화하여 문자열로 변환"""
+        if not encrypted_data:
+            return None
+        decrypted = self.cipher.decrypt(encrypted_data)
+        return decrypted.decode('utf-8')
+
 # 싱글톤 인스턴스
 encryption_service = EncryptionService()

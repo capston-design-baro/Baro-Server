@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from datetime import datetime
 from typing import Optional
+from app.services.encryption_service import encryption_service
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -39,6 +40,21 @@ class UserResponse(BaseModel):
     address: str
     phone_number: str
     created_at: datetime
+
+    @model_validator(mode='before')
+    @classmethod
+    def decrypt_fields(cls, data):
+        """DB에서 조회한 암호화된 필드를 복호화"""
+        if hasattr(data, '__dict__'):
+            # SQLAlchemy 모델인 경우
+            decrypted_data = {}
+            for key, value in data.__dict__.items():
+                if key in ['name', 'address', 'phone_number'] and isinstance(value, bytes):
+                    decrypted_data[key] = encryption_service.decrypt_field(value)
+                else:
+                    decrypted_data[key] = value
+            return decrypted_data
+        return data
 
     class Config:
         from_attributes = True
