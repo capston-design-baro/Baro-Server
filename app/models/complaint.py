@@ -13,28 +13,28 @@ class Complaint(Base):
     status = Column(String, default="in_progress")  # 'in_progress', 'completed'
     crime_type = Column(String, nullable=True)  # 'fraud', 'insult'
 
-    # 고소인 정보
-    complainant_name = Column(String, nullable=True)
-    complainant_address = Column(Text, nullable=True)
-    complainant_office_address = Column(Text, nullable=True)  # 사무실 주소
-    complainant_job = Column(String, nullable=True)  # 직업
-    complainant_phone = Column(String, nullable=True)  # 휴대폰
-    complainant_home_phone = Column(String, nullable=True)  # 자택 전화
-    complainant_office_phone = Column(String, nullable=True)  # 사무실 전화
+    # 고소인 정보 (암호화)
+    complainant_name = Column(LargeBinary, nullable=True)
+    complainant_address = Column(LargeBinary, nullable=True)
+    complainant_office_address = Column(LargeBinary, nullable=True)  # 사무실 주소
+    complainant_job = Column(LargeBinary, nullable=True)  # 직업
+    complainant_phone = Column(LargeBinary, nullable=True)  # 휴대폰
+    complainant_home_phone = Column(LargeBinary, nullable=True)  # 자택 전화
+    complainant_office_phone = Column(LargeBinary, nullable=True)  # 사무실 전화
 
-    # 피고소인 정보
-    accused_name = Column(String, nullable=True)
-    accused_address = Column(Text, nullable=True)
-    accused_office_address = Column(Text, nullable=True)  # 사무실 주소
-    accused_job = Column(String, nullable=True)  # 직업
-    accused_phone = Column(String, nullable=True)
-    accused_email = Column(String, nullable=True)  # 이메일
-    accused_etc = Column(Text, nullable=True)  # 기타사항
-    
-    # 사건 정보
-    crime_fact = Column(Text, nullable=True)  # 범죄사실
-    complaint_reason = Column(Text, nullable=True)  # 고소이유
-    incident_summary = Column(Text, nullable=True)  # 입증하려는 내용
+    # 피고소인 정보 (암호화)
+    accused_name = Column(LargeBinary, nullable=True)
+    accused_address = Column(LargeBinary, nullable=True)
+    accused_office_address = Column(LargeBinary, nullable=True)  # 사무실 주소
+    accused_job = Column(LargeBinary, nullable=True)  # 직업
+    accused_phone = Column(LargeBinary, nullable=True)
+    accused_email = Column(LargeBinary, nullable=True)  # 이메일
+    accused_etc = Column(LargeBinary, nullable=True)  # 기타사항
+
+    # 사건 정보 (암호화)
+    crime_fact = Column(LargeBinary, nullable=True)  # 범죄사실
+    complaint_reason = Column(LargeBinary, nullable=True)  # 고소이유
+    incident_summary = Column(LargeBinary, nullable=True)  # 입증하려는 내용
     has_evidence = Column(Boolean, default=False)       # 증거자료 제출 여부 
     duplicate_complaint = Column(Boolean, default=False)   # 중복 고소 여부
     related_criminal_case = Column(Boolean, default=False) # 관련 형사사건 수사 여부

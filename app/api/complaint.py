@@ -27,17 +27,26 @@ def register_complainant_info(
 ):
     """고소인 정보 등록 - Complaint 생성 및 complaint_id 반환"""
 
+    # 고소인 정보 암호화
+    encrypted_complainant_name = encryption_service.encrypt_field(request.complainant_name)
+    encrypted_complainant_address = encryption_service.encrypt_field(request.complainant_address)
+    encrypted_complainant_office_address = encryption_service.encrypt_field(request.complainant_office_address) if request.complainant_office_address else None
+    encrypted_complainant_job = encryption_service.encrypt_field(request.complainant_job) if request.complainant_job else None
+    encrypted_complainant_phone = encryption_service.encrypt_field(request.complainant_phone)
+    encrypted_complainant_home_phone = encryption_service.encrypt_field(request.complainant_home_phone) if request.complainant_home_phone else None
+    encrypted_complainant_office_phone = encryption_service.encrypt_field(request.complainant_office_phone) if request.complainant_office_phone else None
+
     # Complaint 생성 (고소인 정보만 포함, crime_type은 나중에 설정)
     new_complaint = Complaint(
         user_id=current_user.id,
         status="in_progress",
-        complainant_name=request.complainant_name,
-        complainant_address=request.complainant_address,
-        complainant_office_address=request.complainant_office_address,
-        complainant_job=request.complainant_job,
-        complainant_phone=request.complainant_phone,
-        complainant_home_phone=request.complainant_home_phone,
-        complainant_office_phone=request.complainant_office_phone
+        complainant_name=encrypted_complainant_name,
+        complainant_address=encrypted_complainant_address,
+        complainant_office_address=encrypted_complainant_office_address,
+        complainant_job=encrypted_complainant_job,
+        complainant_phone=encrypted_complainant_phone,
+        complainant_home_phone=encrypted_complainant_home_phone,
+        complainant_office_phone=encrypted_complainant_office_phone
     )
 
     db.add(new_complaint)
@@ -65,14 +74,14 @@ def register_accused_info(
     if not complaint:
         raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
 
-    # 피고소인 정보 업데이트
-    complaint.accused_name = request.accused_name
-    complaint.accused_address = request.accused_address
-    complaint.accused_office_address = request.accused_office_address
-    complaint.accused_job = request.accused_job
-    complaint.accused_phone = request.accused_phone
-    complaint.accused_email = request.accused_email
-    complaint.accused_etc = request.accused_etc
+    # 피고소인 정보 암호화 후 업데이트
+    complaint.accused_name = encryption_service.encrypt_field(request.accused_name)
+    complaint.accused_address = encryption_service.encrypt_field(request.accused_address)
+    complaint.accused_office_address = encryption_service.encrypt_field(request.accused_office_address) if request.accused_office_address else None
+    complaint.accused_job = encryption_service.encrypt_field(request.accused_job) if request.accused_job else None
+    complaint.accused_phone = encryption_service.encrypt_field(request.accused_phone)
+    complaint.accused_email = encryption_service.encrypt_field(request.accused_email) if request.accused_email else None
+    complaint.accused_etc = encryption_service.encrypt_field(request.accused_etc) if request.accused_etc else None
 
     db.commit()
     db.refresh(complaint)
@@ -253,7 +262,11 @@ async def generate_complaint(
             detail=f"AI 서비스 연결 실패: {str(e)}"
         )
 
-    # 생성된 고소장 암호화 저장
+    # 개별 필드에 암호화하여 저장
+    complaint.crime_fact = encryption_service.encrypt_field(criminal_facts)
+    complaint.complaint_reason = encryption_service.encrypt_field(accusation_reason)
+
+    # 생성된 고소장 암호화 저장 (기존 방식 유지)
     complaint.generated_complaint_encrypted = encryption_service.encrypt_json({
         "criminal_facts": criminal_facts,
         "accusation_reason": accusation_reason
@@ -301,26 +314,26 @@ def download_complaint_docx(
     if not complaint.complainant_name or not complaint.accused_name or not complaint.crime_type:
         raise HTTPException(status_code=400, detail="고소인 또는 피고소인 정보가 누락되었습니다.")
 
-    # 5. DOCX 파일 생성
+    # 5. DOCX 파일 생성 (암호화된 필드 복호화)
     complainant_info = {
-        "name": complaint.complainant_name,
-        "address": complaint.complainant_address or "",
-        "office_address": complaint.complainant_office_address or "",
-        "job": complaint.complainant_job or "",
-        "phone": complaint.complainant_phone or "",
-        "home_phone": complaint.complainant_home_phone or "",
-        "office_phone": complaint.complainant_office_phone or "",
+        "name": encryption_service.decrypt_field(complaint.complainant_name) if complaint.complainant_name else "",
+        "address": encryption_service.decrypt_field(complaint.complainant_address) if complaint.complainant_address else "",
+        "office_address": encryption_service.decrypt_field(complaint.complainant_office_address) if complaint.complainant_office_address else "",
+        "job": encryption_service.decrypt_field(complaint.complainant_job) if complaint.complainant_job else "",
+        "phone": encryption_service.decrypt_field(complaint.complainant_phone) if complaint.complainant_phone else "",
+        "home_phone": encryption_service.decrypt_field(complaint.complainant_home_phone) if complaint.complainant_home_phone else "",
+        "office_phone": encryption_service.decrypt_field(complaint.complainant_office_phone) if complaint.complainant_office_phone else "",
         "email": current_user.email  # User 테이블에서 이메일 가져오기
     }
 
     accused_info = {
-        "name": complaint.accused_name,
-        "address": complaint.accused_address or "",
-        "office_address": complaint.accused_office_address or "",
-        "job": complaint.accused_job or "",
-        "phone": complaint.accused_phone or "",
-        "email": complaint.accused_email or "",
-        "etc": complaint.accused_etc or ""
+        "name": encryption_service.decrypt_field(complaint.accused_name) if complaint.accused_name else "",
+        "address": encryption_service.decrypt_field(complaint.accused_address) if complaint.accused_address else "",
+        "office_address": encryption_service.decrypt_field(complaint.accused_office_address) if complaint.accused_office_address else "",
+        "job": encryption_service.decrypt_field(complaint.accused_job) if complaint.accused_job else "",
+        "phone": encryption_service.decrypt_field(complaint.accused_phone) if complaint.accused_phone else "",
+        "email": encryption_service.decrypt_field(complaint.accused_email) if complaint.accused_email else "",
+        "etc": encryption_service.decrypt_field(complaint.accused_etc) if complaint.accused_etc else ""
     }
 
     try:

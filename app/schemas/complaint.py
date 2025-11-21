@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Dict, Any
 from datetime import datetime
+from app.services.encryption_service import encryption_service
 
 # 고소장 시작
 class ComplaintCreate(BaseModel):
@@ -106,9 +107,33 @@ class ComplaintDetail(BaseModel):
     duplicate_complaint: str
     related_criminal_case: str
     related_civil_case: str
-    
+
     created_at: datetime
     updated_at: Optional[datetime]
+
+    @model_validator(mode='before')
+    @classmethod
+    def decrypt_fields(cls, data):
+        """DB에서 조회한 암호화된 필드를 복호화"""
+        if hasattr(data, '__dict__'):
+            # SQLAlchemy 모델인 경우
+            decrypted_data = {}
+            encrypted_fields = [
+                'complainant_name', 'complainant_address', 'complainant_office_address',
+                'complainant_job', 'complainant_phone', 'complainant_home_phone',
+                'complainant_office_phone', 'accused_name', 'accused_address',
+                'accused_office_address', 'accused_job', 'accused_phone',
+                'accused_email', 'accused_etc', 'crime_fact', 'complaint_reason',
+                'incident_summary'
+            ]
+
+            for key, value in data.__dict__.items():
+                if key in encrypted_fields and isinstance(value, bytes):
+                    decrypted_data[key] = encryption_service.decrypt_field(value)
+                else:
+                    decrypted_data[key] = value
+            return decrypted_data
+        return data
 
 # 최종 고소장 생성 요청
 class ComplaintGenerateRequest(BaseModel):

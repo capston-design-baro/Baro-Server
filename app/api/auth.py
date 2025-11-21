@@ -13,6 +13,7 @@ from app.services.auth_service import (
     create_refresh_token,
     verify_token
 )
+from app.services.encryption_service import encryption_service
 from app.config import settings
 from app.middleware.auth_middleware import get_current_user
 
@@ -34,13 +35,18 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     # 비밀번호 해싱
     hashed_password = get_password_hash(user_data.password)
 
+    # 개인정보 암호화
+    encrypted_name = encryption_service.encrypt_field(user_data.name)
+    encrypted_address = encryption_service.encrypt_field(user_data.address)
+    encrypted_phone = encryption_service.encrypt_field(user_data.phone_number)
+
     # 사용자 생성
     new_user = User(
         email=user_data.email,
-        name=user_data.name,
+        name=encrypted_name,
         password_hash=hashed_password,
-        address=user_data.address,
-        phone_number=user_data.phone_number
+        address=encrypted_address,
+        phone_number=encrypted_phone
     )
 
     db.add(new_user)
