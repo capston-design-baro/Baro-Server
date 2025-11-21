@@ -33,6 +33,10 @@ class RefreshTokenRequest(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
+class EmailCheckResponse(BaseModel):
+    available: bool
+    message: str
+
 class UserResponse(BaseModel):
     id: int
     email: str

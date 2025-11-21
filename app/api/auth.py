@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse, RefreshTokenRequest
+from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse, RefreshTokenRequest, EmailCheckResponse
 from app.services.auth_service import (
     get_password_hash,
     verify_password,
@@ -16,9 +16,28 @@ from app.services.auth_service import (
 from app.services.encryption_service import encryption_service
 from app.config import settings
 from app.middleware.auth_middleware import get_current_user
+from pydantic import EmailStr
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
+
+@router.get("/check-email/{email}", response_model=EmailCheckResponse)
+def check_email_availability(email: EmailStr, db: Session = Depends(get_db)):
+    """이메일 중복 확인 - 회원가입 전 이메일 사용 가능 여부 확인"""
+
+    # 데이터베이스에서 이메일 중복 확인
+    existing_user = db.query(User).filter(User.email == email).first()
+
+    if existing_user:
+        return EmailCheckResponse(
+            available=False,
+            message="이미 사용 중인 이메일입니다"
+        )
+
+    return EmailCheckResponse(
+        available=True,
+        message="사용 가능한 이메일입니다"
+    )
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
