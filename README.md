@@ -40,17 +40,18 @@ curl https://baro-server.onrender.com/health
 ### API 문서 확인
 브라우저에서 접속: https://baro-server.onrender.com/docs
 
+
 ## 로컬 개발 환경 설정
 
 ### 1. 사전 요구사항
 
 - Docker Desktop 설치
-- Python 3.13+
+- Python 3.11+ (로컬 개발 시)
 - OpenAI API Key
 
 ### 2. 환경변수 설정
 
-`.env` 파일 생성:
+루트 디렉토리에 `.env` 파일 생성:
 
 ```bash
 cp .env.example .env
@@ -59,19 +60,13 @@ cp .env.example .env
 `.env` 파일 내용:
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/baro_db
-
-# Security Keys
-SECRET_KEY=your-secret-key-min-32-chars
-ENCRYPTION_KEY=your-base64-encoded-key
-
-# OpenAI
+# OpenAI API Key
 OPENAI_API_KEY=sk-your-openai-api-key
 OPENAI_MODEL=gpt-4o-mini
 
-# Baro-AI Service
-BARO_AI_URL=http://localhost:8001
+# Backend Security Keys
+SECRET_KEY=your-secret-key-min-32-chars
+ENCRYPTION_KEY=your-base64-encoded-key
 ```
 
 **ENCRYPTION_KEY 생성 방법:**
@@ -79,39 +74,32 @@ BARO_AI_URL=http://localhost:8001
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-### 3. Docker로 실행 (권장)
+### 3. Docker로 실행
 
 ```bash
 # 이미지 빌드
-docker build -t baro-backend .
+docker compose build
 
-# 컨테이너 실행
-docker run -p 8000:8000 --env-file .env baro-backend
-
-# 또는 루트에서 docker-compose 사용
-cd ..
+# 컨테이너 실행 (백그라운드)
 docker compose up -d
+
+# 로그 확인
+docker compose logs -f
+
+# 중지
+docker compose down
 ```
 
-### 4. 가상환경으로 실행
-
-```bash
-# 가상환경 생성 및 활성화
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 의존성 설치
-pip install -r requirements.txt
-
-# 서버 실행
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 5. 서비스 확인
+### 4. 서비스 확인
 
 - **Backend API**: http://localhost:8000/health
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **AI Service**: http://localhost:8001/
+- **PostgreSQL**: localhost:5433
+
+### 5. API 문서
+
+- **Backend Swagger UI**: http://localhost:8000/docs
+- **Backend ReDoc**: http://localhost:8000/redoc
 
 
 ## 주요 기능
@@ -136,28 +124,34 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### 데이터베이스 마이그레이션
 
 ```bash
+# 컨테이너 내부 접속
+docker exec -it baro-backend bash
+
 # Alembic 마이그레이션
 alembic revision --autogenerate -m "description"
 alembic upgrade head
-
-# Docker 사용 시
-docker exec -it baro-backend alembic upgrade head
 ```
 
 ### 로그 확인
 
 ```bash
-# 로컬 Docker
-docker logs -f baro-backend
+# 전체 로그
+docker compose logs -f
 
-# Render
-Render 대시보드 → Logs 탭
+# 특정 서비스
+docker compose logs -f baro-backend
+docker compose logs -f baro-ai
 ```
 
+### PostgreSQL 접속
+
+```bash
+# Docker 컨테이너 내부 접속
+docker exec -it baro-postgres psql -U baro -d baro_db
+```
 ## 라이센스
 
 캡스톤 디자인 프로젝트 - 교육용
 
 ## 팀
-
-중앙대학교 소프트웨어학부 캡스톤 디자인 팀
+중앙대 소프트웨어학부 캡스톤 디자인 팀
