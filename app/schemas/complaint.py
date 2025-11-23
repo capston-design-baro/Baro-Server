@@ -52,9 +52,14 @@ class ChatMessageCreate(BaseModel):
     message: str
 
 class ChatMessageResponse(BaseModel):
+    id: int
     role: str  # 'user' or 'assistant'
     content: str
-    timestamp: str
+    reason: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class ChatResponse(BaseModel):
     reply: str  # AI 응답 메시지 (질문)

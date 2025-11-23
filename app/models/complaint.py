@@ -51,5 +51,6 @@ class Complaint(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     user = relationship("User", back_populates="complaints")
+    chat_messages = relationship("ChatMessage", back_populates="complaint", cascade="all, delete-orphan")
