@@ -11,24 +11,32 @@ class BaroAIService:
         self.base_url = settings.BARO_AI_URL
         self.timeout = 200.0
 
-    async def chat_init(self, offense: str) -> Dict[str, Any]:
+    async def chat_init(self, text: str) -> Dict[str, Any]:
         """
-        Baro-AI 채팅 세션 초기화
+        Baro-AI 채팅 세션 초기화 (사건개요 기반)
 
         Args:
-            offense: 범죄 유형 ("fraud" or "insult")
+            text: 사건 개요
 
         Returns:
             {
                 "session_id": str,
-                "message": str  # 첫 질문
+                "offense": str,  # AI가 자동 판단한 죄목
+                "rag_keyword": str,  # 추정된 범죄 키워드
+                "rag_cases": [  # 유사 판례
+                    {
+                        "case_no": str,
+                        "label": str,
+                        "text": str
+                    }
+                ]
             }
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
                     f"{self.base_url}/chat/init",
-                    json={"offense": offense}
+                    json={"text": text}
                 )
                 response.raise_for_status()
                 return response.json()

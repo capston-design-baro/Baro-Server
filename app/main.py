@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.models import SecuritySchemeType, HTTPBearer, HTTPBase
 from fastapi.security import HTTPBearer as HTTPBearerSecurity
 from app.api import test, auth, complaint
-from app.models import user, complaint as complaint_model
+from app.models import user, complaint as complaint_model, chat_message
 from app.database import engine, Base
 
 # 데이터베이스 테이블 생성

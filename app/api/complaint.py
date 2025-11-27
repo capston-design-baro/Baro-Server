@@ -10,7 +10,7 @@ from app.schemas.complaint import (
     ComplaintCreate, ComplaintResponse, ComplaintStartResponse, ComplaintDetail,
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
     ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate,
-    RelatedCasesCreate
+    RelatedCasesCreate, ChatInitRequest, ChatInitResponse, RagCase
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
@@ -116,6 +116,58 @@ def register_related_cases(
     db.refresh(complaint)
 
     return complaint
+
+
+@router.post("/{complaint_id}/chat/init", response_model=ChatInitResponse, status_code=status.HTTP_200_OK)
+async def init_chat_session(
+    complaint_id: int,
+    request: ChatInitRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """채팅 세션 초기화 - 사건개요 입력 시 죄목 자동 판단 및 유사 판례 제공"""
+
+    # 1. 기존 complaint 조회 및 권한 확인
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    if complaint.ai_session_id:
+        raise HTTPException(status_code=400, detail="이미 AI 세션이 시작된 고소장입니다")
+
+    # 2. Baro-AI 채팅 세션 초기화 (사건개요 전송)
+    try:
+        ai_response = await ai_service.chat_init(request.text)
+        session_id = ai_response.get("session_id")
+        offense = ai_response.get("offense")
+        rag_keyword = ai_response.get("rag_keyword")
+        rag_cases_data = ai_response.get("rag_cases", [])
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"AI 서비스 연결 실패: {str(e)}"
+        )
+
+    # 3. Complaint 업데이트 (crime_type, ai_session_id 설정)
+    complaint.crime_type = offense
+    complaint.ai_session_id = session_id
+
+    db.commit()
+    db.refresh(complaint)
+
+    # 4. 응답 (죄목 + 판례)
+    rag_cases = [RagCase(**case) for case in rag_cases_data]
+
+    return ChatInitResponse(
+        session_id=session_id,
+        offense=offense,
+        rag_keyword=rag_keyword,
+        rag_cases=rag_cases
+    )
 
 
 @router.post("/{complaint_id}/start", response_model=ComplaintStartResponse, status_code=status.HTTP_200_OK)

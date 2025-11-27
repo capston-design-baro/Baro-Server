@@ -1,9 +1,26 @@
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from app.services.encryption_service import encryption_service
 
-# 고소장 시작
+# 채팅 초기화 요청 (사건개요 입력)
+class ChatInitRequest(BaseModel):
+    text: str  # 사건 개요
+
+# RAG 판례 정보
+class RagCase(BaseModel):
+    case_no: str
+    label: str
+    text: str
+
+# 채팅 초기화 응답 (죄목 자동 판단 + 판례)
+class ChatInitResponse(BaseModel):
+    session_id: str  # Baro-AI 세션 ID
+    offense: str  # AI가 자동 판단한 죄목 ("fraud", "insult")
+    rag_keyword: str  # 추정된 범죄 키워드
+    rag_cases: List[RagCase]  # 유사 판례 2건
+
+# 고소장 시작 (deprecated - ChatInitRequest로 대체)
 class ComplaintCreate(BaseModel):
     offense: str  # "fraud" or "insult"
 
