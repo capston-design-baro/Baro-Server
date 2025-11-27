@@ -6,11 +6,13 @@ from typing import List
 from app.database import get_db
 from app.models.user import User
 from app.models.complaint import Complaint
+from app.models.chat_message import ChatMessage
 from app.schemas.complaint import (
     ComplaintCreate, ComplaintResponse, ComplaintStartResponse, ComplaintDetail,
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
     ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate,
-    RelatedCasesCreate, ChatInitRequest, ChatInitResponse, RagCase
+    RelatedCasesCreate, ChatInitRequest, ChatInitResponse, RagCase,
+    ChatMessageResponse, ChatHistoryResponse
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
@@ -156,10 +158,18 @@ async def init_chat_session(
     complaint.crime_type = offense
     complaint.ai_session_id = session_id
 
+    # 4. 사용자의 첫 메시지 저장
+    user_message = ChatMessage(
+        complaint_id=complaint_id,
+        role="user",
+        content=request.text
+    )
+    db.add(user_message)
+
     db.commit()
     db.refresh(complaint)
 
-    # 4. 응답 (죄목 + 판례)
+    # 5. 응답 (죄목 + 판례)
     rag_cases = [RagCase(**case) for case in rag_cases_data]
 
     return ChatInitResponse(
@@ -255,7 +265,16 @@ async def send_chat_message(
     if complaint.ai_session_id != ai_session_id:
         raise HTTPException(status_code=403, detail="유효하지 않은 세션 ID입니다")
 
-    # 3. Baro-AI에 메시지 전송
+    # 3. 사용자 메시지 저장
+    user_message = ChatMessage(
+        complaint_id=complaint_id,
+        role="user",
+        content=request.message
+    )
+    db.add(user_message)
+    db.commit()
+
+    # 4. Baro-AI에 메시지 전송
     try:
         ai_response = await ai_service.chat_send(
             session_id=ai_session_id,
@@ -267,7 +286,7 @@ async def send_chat_message(
             detail=f"AI 서비스 연결 실패: {str(e)}"
         )
 
-    # 4. 응답 반환 (reason과 question 분리)
+    # 5. 응답 파싱 (reason과 question 분리)
     full_reply = ai_response.get("reply", "")
 
     # reply가 "\n"로 구분되어 있으면 첫 줄은 reason, 나머지는 question
@@ -279,10 +298,44 @@ async def send_chat_message(
         reason = None
         question = full_reply
 
+    # 6. AI 응답 메시지 저장
+    assistant_message = ChatMessage(
+        complaint_id=complaint_id,
+        role="assistant",
+        content=question,
+        reason=reason
+    )
+    db.add(assistant_message)
+    db.commit()
+
     return ChatResponse(
         reply=question,
         reason=reason
     )
+
+@router.get("/{complaint_id}/chat/history", response_model=ChatHistoryResponse)
+def get_chat_history(
+    complaint_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """채팅 내역 조회 - 재진입 시 이전 대화 복원"""
+
+    # 1. 고소장 조회 및 권한 확인
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    # 2. 해당 complaint의 모든 채팅 메시지 조회 (시간순 정렬)
+    messages = db.query(ChatMessage).filter(
+        ChatMessage.complaint_id == complaint_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    return ChatHistoryResponse(messages=messages)
 
 @router.post("/{complaint_id}/generate", response_model=ComplaintGenerateResponse)
 async def generate_complaint(
