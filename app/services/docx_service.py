@@ -28,6 +28,7 @@ class ComplaintDocxService:
         crime_type: str,
         criminal_facts: str,
         accusation_reason: str,
+        has_evidence: bool = False,
         duplicate_complaint: bool = False,
         related_criminal_case: bool = False,
         related_civil_case: bool = False
@@ -72,7 +73,7 @@ class ComplaintDocxService:
         self._add_accusation_reason(doc, accusation_reason)
 
         # 7. 증거자료
-        self._add_evidence_section(doc)
+        self._add_evidence_section(doc, has_evidence)
 
         # 8. 관련사건의 수사 및 재판 여부
         self._add_related_cases_section(doc, duplicate_complaint, related_criminal_case, related_civil_case)
@@ -342,7 +343,7 @@ class ComplaintDocxService:
                 run = p.add_run(para_text)
                 self._set_batang_font(run, bold=False, size=13)
 
-    def _add_evidence_section(self, doc: Document):
+    def _add_evidence_section(self, doc: Document, has_evidence: bool):
         """증거자료 섹션 추가"""
         # 제목
         p = doc.add_paragraph()
@@ -350,14 +351,17 @@ class ComplaintDocxService:
         run = p.add_run("6. 증거자료")
         self._set_batang_font(run, bold=True, size=15)
 
-        # 체크박스 항목들
+        # 체크박스 항목들 - has_evidence 값에 따라 동적으로 표시
+        check_no = "☐" if has_evidence else "☑"
+        check_yes = "☑" if has_evidence else "☐"
+
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(5)
-        run = p.add_run("☐ 고소인은 고소인의 진술 외에 제출할 증거가 없습니다.")
+        run = p.add_run(f"{check_no} 고소인은 고소인의 진술 외에 제출할 증거가 없습니다.")
         self._set_batang_font(run, bold=False, size=13)
 
         p = doc.add_paragraph()
-        run = p.add_run("☑ 고소인은 고소인의 진술 외에 제출할 증거가 있습니다.")
+        run = p.add_run(f"{check_yes} 고소인은 고소인의 진술 외에 제출할 증거가 있습니다.")
         self._set_batang_font(run, bold=False, size=13)
 
         p = doc.add_paragraph()

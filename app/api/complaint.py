@@ -490,6 +490,7 @@ def download_complaint_docx(
             crime_type=complaint.crime_type,
             criminal_facts=criminal_facts,
             accusation_reason=accusation_reason,
+            has_evidence=complaint.has_evidence or False,
             duplicate_complaint=complaint.duplicate_complaint or False,
             related_criminal_case=complaint.related_criminal_case or False,
             related_civil_case=complaint.related_civil_case or False
