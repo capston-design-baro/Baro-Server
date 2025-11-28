@@ -27,7 +27,9 @@ class BaroAIService:
                     {
                         "case_no": str,
                         "label": str,
-                        "text": str
+                        "summary": str,  # 판례 요약
+                        "result": str,  # 판결 결과
+                        "similarity": str  # 유사도 설명
                     }
                 ]
             }

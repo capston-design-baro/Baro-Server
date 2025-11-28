@@ -11,7 +11,9 @@ class ChatInitRequest(BaseModel):
 class RagCase(BaseModel):
     case_no: str
     label: str
-    text: str
+    summary: str  # 판례 요약
+    result: str  # 판결 결과
+    similarity: str  # 유사도 설명
 
 # 채팅 초기화 응답 (죄목 자동 판단 + 판례)
 class ChatInitResponse(BaseModel):
