@@ -11,7 +11,7 @@ from app.schemas.complaint import (
     ComplaintCreate, ComplaintResponse, ComplaintStartResponse, ComplaintDetail,
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
     ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate,
-    RelatedCasesCreate, ChatInitRequest, ChatInitResponse, RagCase,
+    RelatedCasesCreate, EvidenceCreate, ChatInitRequest, ChatInitResponse, RagCase,
     ChatMessageResponse, ChatHistoryResponse
 )
 from app.middleware.auth_middleware import get_current_user
@@ -113,6 +113,33 @@ def register_related_cases(
     complaint.duplicate_complaint = request.duplicate_complaint
     complaint.related_criminal_case = request.related_criminal_case
     complaint.related_civil_case = request.related_civil_case
+
+    db.commit()
+    db.refresh(complaint)
+
+    return complaint
+
+
+@router.post("/info/evidence/{complaint_id}", response_model=ComplaintResponse, status_code=status.HTTP_200_OK)
+def register_evidence(
+    complaint_id: int,
+    request: EvidenceCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """증거 제출 여부 등록"""
+
+    # Complaint 조회 및 권한 확인
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    # 증거 제출 여부 업데이트
+    complaint.has_evidence = request.has_evidence
 
     db.commit()
     db.refresh(complaint)

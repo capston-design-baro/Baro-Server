@@ -50,6 +50,10 @@ class RelatedCasesCreate(BaseModel):
     related_criminal_case: bool  # 관련 형사사건 수사 유무
     related_civil_case: bool  # 관련 민사소송 유무
 
+# 증거 제출 여부 입력
+class EvidenceCreate(BaseModel):
+    has_evidence: bool  # 증거자료 제출 여부
+
 # 사건 정보 업데이트
 class ComplaintUpdate(BaseModel):
     accused_name: Optional[str] = None
