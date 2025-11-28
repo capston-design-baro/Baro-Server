@@ -96,7 +96,7 @@ class ComplaintResponse(BaseModel):
     id: int
     user_id: int
     status: str
-    crime_type: Optional[str]
+    ai_session_id: Optional[str]  # Baro-AI 세션 ID
     created_at: datetime
 
     class Config:
