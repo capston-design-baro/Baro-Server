@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
+import json
 from app.services.encryption_service import encryption_service
 
 # 채팅 초기화 요청 (사건개요 입력)
@@ -77,9 +78,29 @@ class ChatMessageCreate(BaseModel):
 class ChatMessageResponse(BaseModel):
     id: int
     role: str  # 'user' or 'assistant'
-    content: str
+    content: Union[str, Dict[str, Any]]  # JSON 객체 또는 문자열
     reason: Optional[str] = None
     created_at: datetime
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_json_content(cls, data):
+        """content가 JSON 문자열이면 파싱해서 dict로 변환"""
+        if hasattr(data, '__dict__'):
+            # SQLAlchemy 모델인 경우
+            result = {}
+            for key, value in data.__dict__.items():
+                if key == 'content' and isinstance(value, str):
+                    # JSON 파싱 시도
+                    try:
+                        result[key] = json.loads(value)
+                    except (json.JSONDecodeError, ValueError):
+                        # JSON이 아니면 그대로 문자열로
+                        result[key] = value
+                else:
+                    result[key] = value
+            return result
+        return data
 
     class Config:
         from_attributes = True

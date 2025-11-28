@@ -193,10 +193,25 @@ async def init_chat_session(
     )
     db.add(user_message)
 
+    # 5. AI 응답 메시지 저장 (offense, rag_keyword, rag_cases를 JSON으로 저장)
+    import json
+    ai_response_content = json.dumps({
+        "offense": offense,
+        "rag_keyword": rag_keyword,
+        "rag_cases": rag_cases_data
+    }, ensure_ascii=False)
+
+    assistant_message = ChatMessage(
+        complaint_id=complaint_id,
+        role="assistant",
+        content=ai_response_content
+    )
+    db.add(assistant_message)
+
     db.commit()
     db.refresh(complaint)
 
-    # 5. 응답 (죄목 + 판례)
+    # 6. 응답 (죄목 + 판례)
     rag_cases = [RagCase(**case) for case in rag_cases_data]
 
     return ChatInitResponse(
