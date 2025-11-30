@@ -192,6 +192,7 @@ async def init_chat_session(
         content=request.text
     )
     db.add(user_message)
+    db.flush()  # user_message를 DB에 반영하여 다음 sequence 계산 가능하게
 
     # 5. AI 응답 메시지 저장 (offense, rag_keyword, rag_cases를 JSON으로 저장)
     import json
@@ -314,7 +315,7 @@ async def send_chat_message(
         content=request.message
     )
     db.add(user_message)
-    db.commit()
+    db.flush()  # user_message를 DB에 반영하여 다음 sequence 계산 가능하게
 
     # 4. Baro-AI에 메시지 전송
     try:
@@ -498,12 +499,17 @@ def download_complaint_docx(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DOCX 파일 생성 실패: {str(e)}")
 
-    # 6. 파일명 생성 (한글 URL 인코딩)
+    # 6. 다운로드 시점 기록 (TTL 삭제용)
+    from datetime import datetime, timezone
+    complaint.downloaded_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # 7. 파일명 생성 (한글 URL 인코딩)
     from urllib.parse import quote
     filename = f"고소장_{complaint.id}_{complaint.crime_type}.docx"
     encoded_filename = quote(filename)
 
-    # 7. StreamingResponse로 파일 반환
+    # 8. StreamingResponse로 파일 반환
     return StreamingResponse(
         docx_stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
