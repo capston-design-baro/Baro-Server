@@ -18,6 +18,7 @@ from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
 from app.services.ai_service import ai_service
 from app.services.docx_service import complaint_docx_service
+from app.utils.address_parser import get_police_station_name
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 
@@ -414,6 +415,11 @@ async def generate_complaint(
     complaint.crime_fact = encryption_service.encrypt_field(criminal_facts)
     complaint.complaint_reason = encryption_service.encrypt_field(accusation_reason)
 
+    # 고소인 주소 기반 관할 경찰서 자동 입력
+    if complaint.complainant_address:
+        complainant_address = encryption_service.decrypt_field(complaint.complainant_address)
+        complaint.police_station_name = get_police_station_name(complainant_address, db)
+
     # 생성된 고소장 암호화 저장 (기존 방식 유지)
     complaint.generated_complaint_encrypted = encryption_service.encrypt_json({
         "criminal_facts": criminal_facts,
@@ -491,10 +497,12 @@ def download_complaint_docx(
             crime_type=complaint.crime_type,
             criminal_facts=criminal_facts,
             accusation_reason=accusation_reason,
+            db=db,
             has_evidence=complaint.has_evidence or False,
             duplicate_complaint=complaint.duplicate_complaint or False,
             related_criminal_case=complaint.related_criminal_case or False,
-            related_civil_case=complaint.related_civil_case or False
+            related_civil_case=complaint.related_civil_case or False,
+            police_station_name=complaint.police_station_name or "○○경찰서"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DOCX 파일 생성 실패: {str(e)}")

@@ -42,7 +42,10 @@ class Complaint(Base):
     
     # 최종 생성된 고소장 암호화 저장
     generated_complaint_encrypted = Column(LargeBinary, nullable=True)
-    
+
+    # 관할 경찰서 정보
+    police_station_name = Column(String, nullable=True)  # 관할 경찰서명 (예: "서울동작경찰서")
+
     # S3 대화 로그 경로
     s3_conversation_key = Column(String, nullable=True)  # "conversations/123.json"
 

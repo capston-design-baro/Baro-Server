@@ -7,6 +7,7 @@ from docx.oxml import OxmlElement
 from io import BytesIO
 from typing import Dict, Any
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 
 class ComplaintDocxService:
@@ -28,10 +29,12 @@ class ComplaintDocxService:
         crime_type: str,
         criminal_facts: str,
         accusation_reason: str,
+        db: Session,
         has_evidence: bool = False,
         duplicate_complaint: bool = False,
         related_criminal_case: bool = False,
-        related_civil_case: bool = False
+        related_civil_case: bool = False,
+        police_station_name: str = "○○경찰서"
     ) -> BytesIO:
         """
         고소장 DOCX 파일 생성
@@ -79,7 +82,11 @@ class ComplaintDocxService:
         self._add_related_cases_section(doc, duplicate_complaint, related_criminal_case, related_civil_case)
 
         # 9. 맺음말
-        self._add_closing(doc, complainant_info.get("name", "고소인"))
+        self._add_closing(
+            doc,
+            complainant_info.get("name", "고소인"),
+            police_station_name
+        )
 
         # BytesIO로 저장
         file_stream = BytesIO()
@@ -487,7 +494,7 @@ class ComplaintDocxService:
         # 표 스타일 적용
         self._apply_table_style(table, align_left=True)
 
-    def _add_closing(self, doc: Document, complainant_name: str):
+    def _add_closing(self, doc: Document, complainant_name: str, police_station_name: str):
         """맺음말 추가"""
         # 안내 문구
         p = doc.add_paragraph()
@@ -540,10 +547,10 @@ class ComplaintDocxService:
         doc.add_paragraph()
         doc.add_paragraph()
 
-        # 수신처
+        # 수신처 (관할 경찰서)
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run("○○지방검찰청 귀중")
+        run = p.add_run(f"{police_station_name} 귀중")
         self._set_batang_font(run, bold=False, size=13)
 
     def _apply_table_style(self, table, align_left=False):
