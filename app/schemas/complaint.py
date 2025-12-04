@@ -109,8 +109,7 @@ class ChatHistoryResponse(BaseModel):
     messages: List[ChatMessageResponse]
 
 class ChatResponse(BaseModel):
-    reply: str  # AI 응답 메시지 (질문)
-    reason: Optional[str] = None  # 재질문 이유
+    reply: str  # AI 응답 메시지
 
 # 고소장 응답
 class ComplaintResponse(BaseModel):

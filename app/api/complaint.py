@@ -330,31 +330,20 @@ async def send_chat_message(
             detail=f"AI 서비스 연결 실패: {str(e)}"
         )
 
-    # 5. 응답 파싱 (reason과 question 분리)
-    full_reply = ai_response.get("reply", "")
-
-    # reply가 "\n"로 구분되어 있으면 첫 줄은 reason, 나머지는 question
-    if "\n" in full_reply:
-        parts = full_reply.split("\n", 1)
-        reason = parts[0].strip()
-        question = parts[1].strip() if len(parts) > 1 else full_reply
-    else:
-        reason = None
-        question = full_reply
+    # 5. AI 응답 추출
+    reply = ai_response.get("reply", "")
 
     # 6. AI 응답 메시지 저장
     assistant_message = ChatMessage(
         complaint_id=complaint_id,
         role="assistant",
-        content=question,
-        reason=reason
+        content=reply
     )
     db.add(assistant_message)
     db.commit()
 
     return ChatResponse(
-        reply=question,
-        reason=reason
+        reply=reply
     )
 
 @router.get("/{complaint_id}/chat/history", response_model=ChatHistoryResponse)
