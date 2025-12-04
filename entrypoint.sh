@@ -20,7 +20,8 @@ db.close()
 if count == 0:
     print('Police stations data not found. Inserting...')
     import subprocess
-    subprocess.run(['python', 'scripts/seed_police_stations.py'], check=True)
+    import sys
+    subprocess.run([sys.executable, '-m', 'scripts.seed_police_stations'], check=True)
 else:
     print(f'Police stations data already exists ({count} records). Skipping.')
 "
