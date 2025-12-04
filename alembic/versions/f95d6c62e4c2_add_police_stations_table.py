@@ -20,24 +20,34 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.create_table(
-        'police_stations',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('province', sa.String(), nullable=False),
-        sa.Column('city', sa.String(), nullable=True),
-        sa.Column('district', sa.String(), nullable=True),
-        sa.Column('station_name', sa.String(), nullable=False),
-        sa.Column('jurisdiction', sa.Text(), nullable=True),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_police_stations_province'), 'police_stations', ['province'], unique=False)
-    op.create_index(op.f('ix_police_stations_city'), 'police_stations', ['city'], unique=False)
-    op.create_index(op.f('ix_police_stations_district'), 'police_stations', ['district'], unique=False)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    # Check if police_stations table already exists
+    if 'police_stations' not in inspector.get_table_names():
+        op.create_table(
+            'police_stations',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('province', sa.String(), nullable=False),
+            sa.Column('city', sa.String(), nullable=True),
+            sa.Column('district', sa.String(), nullable=True),
+            sa.Column('station_name', sa.String(), nullable=False),
+            sa.Column('jurisdiction', sa.Text(), nullable=True),
+            sa.PrimaryKeyConstraint('id')
+        )
+        op.create_index(op.f('ix_police_stations_province'), 'police_stations', ['province'], unique=False)
+        op.create_index(op.f('ix_police_stations_city'), 'police_stations', ['city'], unique=False)
+        op.create_index(op.f('ix_police_stations_district'), 'police_stations', ['district'], unique=False)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index(op.f('ix_police_stations_district'), table_name='police_stations')
-    op.drop_index(op.f('ix_police_stations_city'), table_name='police_stations')
-    op.drop_index(op.f('ix_police_stations_province'), table_name='police_stations')
-    op.drop_table('police_stations')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    # Check if police_stations table exists before dropping
+    if 'police_stations' in inspector.get_table_names():
+        op.drop_index(op.f('ix_police_stations_district'), table_name='police_stations')
+        op.drop_index(op.f('ix_police_stations_city'), table_name='police_stations')
+        op.drop_index(op.f('ix_police_stations_province'), table_name='police_stations')
+        op.drop_table('police_stations')

@@ -20,11 +20,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Add ai_session_id column to complaints table
-    op.add_column('complaints', sa.Column('ai_session_id', sa.String(), nullable=True))
+    # Check if ai_session_id column already exists
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    if 'complaints' in inspector.get_table_names():
+        columns = [col['name'] for col in inspector.get_columns('complaints')]
+
+        if 'ai_session_id' not in columns:
+            # Add ai_session_id column to complaints table
+            op.add_column('complaints', sa.Column('ai_session_id', sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # Remove ai_session_id column from complaints table
-    op.drop_column('complaints', 'ai_session_id')
+    # Check if ai_session_id column exists before dropping
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    if 'complaints' in inspector.get_table_names():
+        columns = [col['name'] for col in inspector.get_columns('complaints')]
+
+        if 'ai_session_id' in columns:
+            # Remove ai_session_id column from complaints table
+            op.drop_column('complaints', 'ai_session_id')

@@ -21,34 +21,64 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema: 개인정보 필드를 LargeBinary로 변경"""
 
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
     # Users 테이블 - 개인정보 필드 암호화
-    # PostgreSQL에서는 USING 절을 사용하여 타입 변환
-    op.execute('ALTER TABLE users ALTER COLUMN name TYPE BYTEA USING name::text::bytea')
-    op.execute('ALTER TABLE users ALTER COLUMN address TYPE BYTEA USING address::text::bytea')
-    op.execute('ALTER TABLE users ALTER COLUMN phone_number TYPE BYTEA USING phone_number::text::bytea')
+    if 'users' in inspector.get_table_names():
+        user_columns = {col['name']: col for col in inspector.get_columns('users')}
 
-    # Complaints 테이블 - 고소인 정보 암호화
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_name TYPE BYTEA USING complainant_name::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_address TYPE BYTEA USING complainant_address::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_office_address TYPE BYTEA USING complainant_office_address::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_job TYPE BYTEA USING complainant_job::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_phone TYPE BYTEA USING complainant_phone::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_home_phone TYPE BYTEA USING complainant_home_phone::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complainant_office_phone TYPE BYTEA USING complainant_office_phone::text::bytea')
+        # Only convert if column exists and is not already BYTEA
+        if 'name' in user_columns and str(user_columns['name']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE users ALTER COLUMN name TYPE BYTEA USING name::text::bytea')
+        if 'address' in user_columns and str(user_columns['address']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE users ALTER COLUMN address TYPE BYTEA USING address::text::bytea')
+        if 'phone_number' in user_columns and str(user_columns['phone_number']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE users ALTER COLUMN phone_number TYPE BYTEA USING phone_number::text::bytea')
 
-    # Complaints 테이블 - 피고소인 정보 암호화
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_name TYPE BYTEA USING accused_name::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_address TYPE BYTEA USING accused_address::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_office_address TYPE BYTEA USING accused_office_address::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_job TYPE BYTEA USING accused_job::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_phone TYPE BYTEA USING accused_phone::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_email TYPE BYTEA USING accused_email::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN accused_etc TYPE BYTEA USING accused_etc::text::bytea')
+    # Complaints 테이블 - 개인정보 암호화
+    if 'complaints' in inspector.get_table_names():
+        complaint_columns = {col['name']: col for col in inspector.get_columns('complaints')}
 
-    # Complaints 테이블 - 사건 정보 암호화
-    op.execute('ALTER TABLE complaints ALTER COLUMN crime_fact TYPE BYTEA USING crime_fact::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN complaint_reason TYPE BYTEA USING complaint_reason::text::bytea')
-    op.execute('ALTER TABLE complaints ALTER COLUMN incident_summary TYPE BYTEA USING incident_summary::text::bytea')
+        # 고소인 정보
+        if 'complainant_name' in complaint_columns and str(complaint_columns['complainant_name']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_name TYPE BYTEA USING complainant_name::text::bytea')
+        if 'complainant_address' in complaint_columns and str(complaint_columns['complainant_address']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_address TYPE BYTEA USING complainant_address::text::bytea')
+        if 'complainant_office_address' in complaint_columns and str(complaint_columns['complainant_office_address']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_office_address TYPE BYTEA USING complainant_office_address::text::bytea')
+        if 'complainant_job' in complaint_columns and str(complaint_columns['complainant_job']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_job TYPE BYTEA USING complainant_job::text::bytea')
+        if 'complainant_phone' in complaint_columns and str(complaint_columns['complainant_phone']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_phone TYPE BYTEA USING complainant_phone::text::bytea')
+        if 'complainant_home_phone' in complaint_columns and str(complaint_columns['complainant_home_phone']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_home_phone TYPE BYTEA USING complainant_home_phone::text::bytea')
+        if 'complainant_office_phone' in complaint_columns and str(complaint_columns['complainant_office_phone']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complainant_office_phone TYPE BYTEA USING complainant_office_phone::text::bytea')
+
+        # 피고소인 정보
+        if 'accused_name' in complaint_columns and str(complaint_columns['accused_name']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_name TYPE BYTEA USING accused_name::text::bytea')
+        if 'accused_address' in complaint_columns and str(complaint_columns['accused_address']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_address TYPE BYTEA USING accused_address::text::bytea')
+        if 'accused_office_address' in complaint_columns and str(complaint_columns['accused_office_address']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_office_address TYPE BYTEA USING accused_office_address::text::bytea')
+        if 'accused_job' in complaint_columns and str(complaint_columns['accused_job']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_job TYPE BYTEA USING accused_job::text::bytea')
+        if 'accused_phone' in complaint_columns and str(complaint_columns['accused_phone']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_phone TYPE BYTEA USING accused_phone::text::bytea')
+        if 'accused_email' in complaint_columns and str(complaint_columns['accused_email']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_email TYPE BYTEA USING accused_email::text::bytea')
+        if 'accused_etc' in complaint_columns and str(complaint_columns['accused_etc']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN accused_etc TYPE BYTEA USING accused_etc::text::bytea')
+
+        # 사건 정보
+        if 'crime_fact' in complaint_columns and str(complaint_columns['crime_fact']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN crime_fact TYPE BYTEA USING crime_fact::text::bytea')
+        if 'complaint_reason' in complaint_columns and str(complaint_columns['complaint_reason']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN complaint_reason TYPE BYTEA USING complaint_reason::text::bytea')
+        if 'incident_summary' in complaint_columns and str(complaint_columns['incident_summary']['type']) != 'BYTEA':
+            op.execute('ALTER TABLE complaints ALTER COLUMN incident_summary TYPE BYTEA USING incident_summary::text::bytea')
 
 
 def downgrade() -> None:
