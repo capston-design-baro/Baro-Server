@@ -29,7 +29,9 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", 
+    "https://baro-front-five.vercel.app",
+    "https://baro-front-qlq4xlmhw-soyeons-projects-0593c180.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
