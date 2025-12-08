@@ -309,8 +309,6 @@ class ComplaintDocxService:
         run = p.add_run(f"고소인은 피고소인을 {crime_name}로 고소하오니 처벌하여 주시기 바랍니다.")
         self._set_batang_font(run, bold=False, size=13)
 
-        # 페이지 나누기 - 범죄사실이 다음 페이지로 넘어가도록
-        doc.add_page_break()
 
     def _add_criminal_facts(self, doc: Document, criminal_facts: str):
         """범죄사실 섹션 추가"""
