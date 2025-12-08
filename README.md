@@ -6,20 +6,8 @@
 
 - **Backend API**: https://baro-server.onrender.com
 - **API 문서 (Swagger)**: https://baro-server.onrender.com/docs
-- **Health Check**: https://baro-server.onrender.com/health
-- **Database**: PostgreSQL (Render)
 
 > ⚠️ **Sleep 모드**: 15분 미사용 시 sleep 상태 진입. 첫 요청 시 30초-1분 소요됩니다.
-
-## 프로젝트 구조
-
-```
-baro/
-├── baro-backend/          # FastAPI 백엔드 서버 (PostgreSQL 연동)
-├── Baro-AI/               # AI 대화 서비스 (OpenAI API)
-├── docker-compose.yml     # 로컬 개발용 Docker 설정
-└── README.md
-```
 
 ## 기술 스택
 
@@ -29,78 +17,6 @@ baro/
 - **Encryption**: Fernet (개인정보 암호화)
 - **Deployment**: Docker, Render
 - **Database**: PostgreSQL 17
-
-## API 테스트
-
-### Health Check
-```bash
-curl https://baro-server.onrender.com/health
-```
-
-### API 문서 확인
-브라우저에서 접속: https://baro-server.onrender.com/docs
-
-
-## 로컬 개발 환경 설정
-
-### 1. 사전 요구사항
-
-- Docker Desktop 설치
-- Python 3.11+ (로컬 개발 시)
-- OpenAI API Key
-
-### 2. 환경변수 설정
-
-루트 디렉토리에 `.env` 파일 생성:
-
-```bash
-cp .env.example .env
-```
-
-`.env` 파일 내용:
-
-```env
-# OpenAI API Key
-OPENAI_API_KEY=sk-your-openai-api-key
-OPENAI_MODEL=gpt-4o-mini
-
-# Backend Security Keys
-SECRET_KEY=your-secret-key-min-32-chars
-ENCRYPTION_KEY=your-base64-encoded-key
-```
-
-**ENCRYPTION_KEY 생성 방법:**
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-### 3. Docker로 실행
-
-```bash
-# 이미지 빌드
-docker compose build
-
-# 컨테이너 실행 (백그라운드)
-docker compose up -d
-
-# 로그 확인
-docker compose logs -f
-
-# 중지
-docker compose down
-```
-
-### 4. 서비스 확인
-
-- **Backend API**: http://localhost:8000/health
-- **AI Service**: http://localhost:8001/
-- **PostgreSQL**: localhost:5433
-
-### 5. API 문서
-
-- **Backend Swagger UI**: http://localhost:8000/docs
-- **Backend ReDoc**: http://localhost:8000/redoc
-
 
 ## 주요 기능
 
@@ -119,36 +35,6 @@ docker compose down
 - JWT 토큰 기반 인증
 - HTTPS (Render 자동 제공)
 
-## 개발 팁
-
-### 데이터베이스 마이그레이션
-
-```bash
-# 컨테이너 내부 접속
-docker exec -it baro-backend bash
-
-# Alembic 마이그레이션
-alembic revision --autogenerate -m "description"
-alembic upgrade head
-```
-
-### 로그 확인
-
-```bash
-# 전체 로그
-docker compose logs -f
-
-# 특정 서비스
-docker compose logs -f baro-backend
-docker compose logs -f baro-ai
-```
-
-### PostgreSQL 접속
-
-```bash
-# Docker 컨테이너 내부 접속
-docker exec -it baro-postgres psql -U baro -d baro_db
-```
 ## 라이센스
 
 캡스톤 디자인 프로젝트 - 교육용
