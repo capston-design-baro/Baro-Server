@@ -306,7 +306,7 @@ class ComplaintDocxService:
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(5)
         p.paragraph_format.line_spacing = 1.5
-        run = p.add_run(f"고소인은 피고소인을 {crime_name}로 고소하오니 처벌하여 주시기 바랍니다.")
+        run = p.add_run(f"고소인은 피고인을 형법 제347조 {crime_name}죄 혐의로 고소합니다.")
         self._set_batang_font(run, bold=False, size=13)
 
 
