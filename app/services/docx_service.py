@@ -292,6 +292,8 @@ class ComplaintDocxService:
         # 표 스타일 적용
         self._apply_table_style(table)
 
+        doc.add_page_break()
+
     def _add_complaint_purpose(self, doc: Document, crime_type: str):
         """고소취지 섹션 추가"""
         crime_name = self.CRIME_TYPE_MAP.get(crime_type, crime_type)
