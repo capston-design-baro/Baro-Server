@@ -104,6 +104,48 @@ class BaroAIService:
         except Exception as e:
             raise RuntimeError(f"예상치 못한 오류: {str(e)}")
 
+    async def chat_restore_session(self, chat_history: List[Dict[str, str]]) -> str:
+        """
+        DB에 저장된 채팅 히스토리로 세션 복원
+
+        Args:
+            chat_history: [{"role": "user"|"assistant", "content": "..."}]
+
+        Returns:
+            새로 생성된 session_id
+        """
+        if not chat_history:
+            raise RuntimeError("채팅 히스토리가 비어있습니다.")
+
+        # 첫 번째 사용자 메시지로 세션 초기화
+        first_message = next((msg for msg in chat_history if msg["role"] == "user"), None)
+        if not first_message:
+            raise RuntimeError("사용자 메시지를 찾을 수 없습니다.")
+
+        # /chat/init으로 새 세션 생성
+        init_response = await self.chat_init(first_message["content"])
+        new_session_id = init_response.get("session_id")
+
+        # 나머지 사용자 메시지들을 순차적으로 재전송하여 세션 복원
+        # (첫 메시지는 이미 init에서 보냈으므로 스킵)
+        skip_first = True
+        for msg in chat_history:
+            if msg["role"] != "user":
+                continue
+            if skip_first:
+                skip_first = False
+                continue
+
+            # 각 사용자 메시지를 재전송
+            try:
+                await self.chat_send(new_session_id, msg["content"])
+            except Exception as e:
+                # 복원 중 에러가 발생해도 계속 진행
+                print(f"세션 복원 중 경고: {str(e)}")
+                continue
+
+        return new_session_id
+
     async def chat_compose(self, session_id: str) -> Dict[str, Any]:
         """
         Baro-AI에 고소장 작성 요청

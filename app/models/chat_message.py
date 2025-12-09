@@ -12,9 +12,7 @@ class ChatMessage(Base):
     # 메시지 정보
     role = Column(String, nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)  # 메시지 내용
-
-    # 추가 정보 (선택적)
-    reason = Column(Text, nullable=True)  # assistant의 재질문 이유
+    reason = Column(Text, nullable=True)
 
     # 타임스탬프
     created_at = Column(DateTime(timezone=True), server_default=func.now())
