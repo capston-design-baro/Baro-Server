@@ -28,4 +28,4 @@ else:
 
 # 3. FastAPI 서버 시작
 echo "Starting FastAPI server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"
