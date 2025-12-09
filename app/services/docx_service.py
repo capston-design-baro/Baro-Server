@@ -292,6 +292,8 @@ class ComplaintDocxService:
         # 표 스타일 적용
         self._apply_table_style(table)
 
+        doc.add_page_break()
+
     def _add_complaint_purpose(self, doc: Document, crime_type: str):
         """고소취지 섹션 추가"""
         crime_name = self.CRIME_TYPE_MAP.get(crime_type, crime_type)
@@ -306,7 +308,7 @@ class ComplaintDocxService:
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(5)
         p.paragraph_format.line_spacing = 1.5
-        run = p.add_run(f"고소인은 피고인을 형법 제347조 {crime_name}죄 혐의로 고소합니다.")
+        run = p.add_run(f"고소인은 피고인을 형법 제347조 {crime_name} 혐의로 고소합니다.")
         self._set_batang_font(run, bold=False, size=13)
 
 
