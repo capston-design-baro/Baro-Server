@@ -483,10 +483,18 @@ async def generate_complaint(
     complaint.crime_fact = encryption_service.encrypt_field(criminal_facts)
     complaint.complaint_reason = encryption_service.encrypt_field(accusation_reason)
 
-    # 고소인 주소 기반 관할 경찰서 자동 입력
-    if complaint.complainant_address:
-        complainant_address = encryption_service.decrypt_field(complaint.complainant_address)
-        complaint.police_station_name = get_police_station_name(complainant_address, db)
+    # 관할 경찰서 자동 입력 (우선순위: 피고소인 주소 > 고소인 주소)
+    address_for_jurisdiction = None
+
+    # 1순위: 피고소인 주소
+    if complaint.accused_address:
+        address_for_jurisdiction = encryption_service.decrypt_field(complaint.accused_address)
+    # 2순위: 고소인 주소
+    elif complaint.complainant_address:
+        address_for_jurisdiction = encryption_service.decrypt_field(complaint.complainant_address)
+
+    if address_for_jurisdiction:
+        complaint.police_station_name = get_police_station_name(address_for_jurisdiction, db)
 
     # 생성된 고소장 암호화 저장 (기존 방식 유지)
     complaint.generated_complaint_encrypted = encryption_service.encrypt_json({
