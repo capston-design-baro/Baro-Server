@@ -40,7 +40,7 @@ class ComplainantInfoCreate(BaseModel):
 # 피고소인 정보 입력
 class AccusedInfoCreate(BaseModel):
     accused_name: str
-    accused_address: str
+    accused_address: Optional[str] = None # 거주지
     accused_office_address: Optional[str] = None  # 사무실 주소
     accused_job: Optional[str] = None  # 직업
     accused_phone: str
