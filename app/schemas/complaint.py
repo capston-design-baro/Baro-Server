@@ -110,6 +110,7 @@ class ChatHistoryResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str  # AI 응답 메시지
+    session_id: Optional[str] = None  # 현재 유효한 Baro-AI 세션 ID
 
 # 고소장 응답
 class ComplaintResponse(BaseModel):

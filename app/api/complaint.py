@@ -22,6 +22,38 @@ from app.utils.address_parser import get_police_station_name
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 
+INTERNAL_BOOTSTRAP_MESSAGE = "위 사건 개요를 기반으로, 고소장 작성을 위해 필요한 정보를 단계적으로 질문해 주세요."
+
+
+def is_internal_chat_message(content: str) -> bool:
+    """프론트가 첫 질문 생성을 위해 보내는 내부 메시지는 사용자 히스토리에서 제외한다."""
+    return (content or "").strip() == INTERNAL_BOOTSTRAP_MESSAGE
+
+
+def get_restore_history(db: Session, complaint_id: int, exclude_message_id: int | None = None):
+    query = db.query(ChatMessage).filter(ChatMessage.complaint_id == complaint_id)
+    if exclude_message_id is not None:
+        query = query.filter(ChatMessage.id != exclude_message_id)
+
+    messages = query.order_by(ChatMessage.created_at.asc()).all()
+    return [
+        {"role": msg.role, "content": msg.content}
+        for msg in messages
+        if msg.role == "user" and not is_internal_chat_message(msg.content)
+    ]
+
+
+async def restore_ai_session(db: Session, complaint: Complaint, exclude_message_id: int | None = None) -> str:
+    history_list = get_restore_history(
+        db=db,
+        complaint_id=complaint.id,
+        exclude_message_id=exclude_message_id
+    )
+    new_session_id = await ai_service.chat_restore_session(history_list)
+    complaint.ai_session_id = new_session_id
+    db.flush()
+    return new_session_id
+
 @router.post("/info/complainant", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
 def register_complainant_info(
     request: ComplainantInfoCreate,
@@ -305,53 +337,45 @@ async def send_chat_message(
     if not complaint:
         raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
 
-    # 2. ai_session_id 검증 (보안: 해당 complaint의 세션인지 확인)
-    if complaint.ai_session_id != ai_session_id:
-        raise HTTPException(status_code=403, detail="유효하지 않은 세션 ID입니다")
+    # 2. 실제 AI 호출은 DB의 최신 세션 ID를 기준으로 수행한다.
+    # 프론트가 예전 ai_session_id를 보내도 complaint 소유권만 맞으면 이어쓰기를 허용한다.
+    effective_session_id = complaint.ai_session_id or ai_session_id
 
-    # 3. 사용자 메시지 저장
-    user_message = ChatMessage(
-        complaint_id=complaint_id,
-        role="user",
-        content=request.message
-    )
-    db.add(user_message)
-    db.flush()  # user_message를 DB에 반영하여 다음 sequence 계산 가능하게
+    if not effective_session_id:
+        raise HTTPException(status_code=400, detail="AI 세션이 초기화되지 않았습니다")
+
+    # 3. 사용자 메시지 저장. 단, 첫 질문 생성을 위한 내부 프롬프트는 히스토리에 노출하지 않는다.
+    should_store_user_message = not is_internal_chat_message(request.message)
+    user_message = None
+    if should_store_user_message:
+        user_message = ChatMessage(
+            complaint_id=complaint_id,
+            role="user",
+            content=request.message
+        )
+        db.add(user_message)
+        db.flush()  # user_message를 DB에 반영하여 복원 제외 조건에 활용
 
     # 4. Baro-AI에 메시지 전송 (세션 복원 로직 포함)
     try:
         ai_response = await ai_service.chat_send(
-            session_id=ai_session_id,
+            session_id=effective_session_id,
             message=request.message
         )
     except RuntimeError as e:
-        error_msg = str(e)
-
-        # 세션을 찾을 수 없는 경우 (Render sleep 후 재시작)
-        if "세션을 찾을 수 없습니다" in error_msg or "404" in error_msg:
+        # 세션을 찾을 수 없는 경우 (AI 서버 재시작 등)
+        if ai_service.is_session_missing_error(e):
             try:
-                # DB에서 이전 채팅 히스토리 가져오기 (현재 메시지 제외)
-                chat_history = db.query(ChatMessage).filter(
-                    ChatMessage.complaint_id == complaint_id,
-                    ChatMessage.id != user_message.id  # 방금 저장한 메시지는 제외
-                ).order_by(ChatMessage.created_at.asc()).all()
-
-                # 채팅 히스토리를 dict 리스트로 변환
-                history_list = [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in chat_history
-                ]
-
-                # 세션 복원
-                new_session_id = await ai_service.chat_restore_session(history_list)
-
-                # DB에 새 세션 ID 업데이트
-                complaint.ai_session_id = new_session_id
-                db.flush()
+                exclude_message_id = user_message.id if user_message else None
+                effective_session_id = await restore_ai_session(
+                    db=db,
+                    complaint=complaint,
+                    exclude_message_id=exclude_message_id
+                )
 
                 # 복원된 세션으로 메시지 재전송
                 ai_response = await ai_service.chat_send(
-                    session_id=new_session_id,
+                    session_id=effective_session_id,
                     message=request.message
                 )
             except Exception as restore_error:
@@ -362,7 +386,7 @@ async def send_chat_message(
         else:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"AI 서비스 연결 실패: {error_msg}"
+                detail=f"AI 서비스 연결 실패: {str(e)}"
             )
     except Exception as e:
         raise HTTPException(
@@ -383,7 +407,8 @@ async def send_chat_message(
     db.commit()
 
     return ChatResponse(
-        reply=reply
+        reply=reply,
+        session_id=effective_session_id
     )
 
 @router.get("/{complaint_id}/chat/history", response_model=ChatHistoryResponse)
@@ -407,6 +432,11 @@ def get_chat_history(
     messages = db.query(ChatMessage).filter(
         ChatMessage.complaint_id == complaint_id
     ).order_by(ChatMessage.created_at.asc()).all()
+    messages = [
+        message
+        for message in messages
+        if not (message.role == "user" and is_internal_chat_message(message.content))
+    ]
 
     return ChatHistoryResponse(messages=messages)
 
@@ -430,36 +460,19 @@ async def generate_complaint(
 
     # Baro-AI에 고소장 작성 요청 (세션 복원 로직 포함)
     try:
-        ai_response = await ai_service.chat_compose(complaint.ai_session_id)
+        effective_session_id = complaint.ai_session_id
+        ai_response = await ai_service.chat_compose(effective_session_id)
         sections = ai_response.get("sections", {})
         criminal_facts = sections.get("criminal_facts", "")
         accusation_reason = sections.get("accusation_reason", "")
     except RuntimeError as e:
-        error_msg = str(e)
-
-        # 세션을 찾을 수 없는 경우 (Render sleep 후 재시작)
-        if "세션을 찾을 수 없습니다" in error_msg or "404" in error_msg:
+        # 세션을 찾을 수 없는 경우 (AI 서버 재시작 등)
+        if ai_service.is_session_missing_error(e):
             try:
-                # DB에서 채팅 히스토리 가져오기
-                chat_history = db.query(ChatMessage).filter(
-                    ChatMessage.complaint_id == complaint_id
-                ).order_by(ChatMessage.created_at.asc()).all()
-
-                # 채팅 히스토리를 dict 리스트로 변환
-                history_list = [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in chat_history
-                ]
-
-                # 세션 복원
-                new_session_id = await ai_service.chat_restore_session(history_list)
-
-                # DB에 새 세션 ID 업데이트
-                complaint.ai_session_id = new_session_id
-                db.flush()
+                effective_session_id = await restore_ai_session(db=db, complaint=complaint)
 
                 # 복원된 세션으로 고소장 작성 재요청
-                ai_response = await ai_service.chat_compose(new_session_id)
+                ai_response = await ai_service.chat_compose(effective_session_id)
                 sections = ai_response.get("sections", {})
                 criminal_facts = sections.get("criminal_facts", "")
                 accusation_reason = sections.get("accusation_reason", "")
@@ -471,7 +484,7 @@ async def generate_complaint(
         else:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"AI 서비스 연결 실패: {error_msg}"
+                detail=f"AI 서비스 연결 실패: {str(e)}"
             )
     except Exception as e:
         raise HTTPException(

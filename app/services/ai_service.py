@@ -11,6 +11,12 @@ class BaroAIService:
         self.base_url = settings.BARO_AI_URL
         self.timeout = 200.0
 
+    @staticmethod
+    def is_session_missing_error(error: Exception) -> bool:
+        """Baro-AI의 인메모리 세션 유실 여부를 판별한다."""
+        error_msg = str(error)
+        return "세션을 찾을 수 없습니다" in error_msg or "404" in error_msg
+
     async def chat_init(self, text: str) -> Dict[str, Any]:
         """
         Baro-AI 채팅 세션 초기화 (사건개요 기반)
