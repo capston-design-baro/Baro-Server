@@ -123,32 +123,35 @@ class BaroAIService:
         if not chat_history:
             raise RuntimeError("채팅 히스토리가 비어있습니다.")
 
-        # 첫 번째 사용자 메시지로 세션 초기화
-        first_message = next((msg for msg in chat_history if msg["role"] == "user"), None)
-        if not first_message:
+        if not any(msg.get("role") == "user" for msg in chat_history):
             raise RuntimeError("사용자 메시지를 찾을 수 없습니다.")
 
-        # /chat/init으로 새 세션 생성
-        init_response = await self.chat_init(first_message["content"])
-        new_session_id = init_response.get("session_id")
-
-        # 나머지 사용자 메시지들을 순차적으로 재전송하여 세션 복원
-        # (첫 메시지는 이미 init에서 보냈으므로 스킵)
-        skip_first = True
-        for msg in chat_history:
-            if msg["role"] != "user":
-                continue
-            if skip_first:
-                skip_first = False
-                continue
-
-            # 각 사용자 메시지를 재전송
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/restore",
+                    json={"history": chat_history}
+                )
+                response.raise_for_status()
+                data = response.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = "Baro-AI 세션 복원 오류"
             try:
-                await self.chat_send(new_session_id, msg["content"])
-            except Exception as e:
-                # 복원 중 에러가 발생해도 계속 진행
-                print(f"세션 복원 중 경고: {str(e)}")
-                continue
+                error_body = e.response.json()
+                error_detail = error_body.get("detail", str(error_body))
+            except:
+                error_detail = e.response.text or str(e)
+            raise RuntimeError(f"Baro-AI 세션 복원 오류 ({e.response.status_code}): {error_detail}")
+        except httpx.TimeoutException:
+            raise RuntimeError("Baro-AI 세션 복원 응답 시간 초과")
+        except httpx.ConnectError:
+            raise RuntimeError("Baro-AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
+        except Exception as e:
+            raise RuntimeError(f"예상치 못한 세션 복원 오류: {str(e)}")
+
+        new_session_id = data.get("session_id")
+        if not new_session_id:
+            raise RuntimeError("Baro-AI 세션 복원 응답에 session_id가 없습니다.")
 
         return new_session_id
 
