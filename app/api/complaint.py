@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.models.user import User
@@ -30,7 +30,7 @@ def is_internal_chat_message(content: str) -> bool:
     return (content or "").strip() == INTERNAL_BOOTSTRAP_MESSAGE
 
 
-def get_restore_history(db: Session, complaint_id: int, exclude_message_id: int | None = None):
+def get_restore_history(db: Session, complaint_id: int, exclude_message_id: Optional[int] = None):
     query = db.query(ChatMessage).filter(ChatMessage.complaint_id == complaint_id)
     if exclude_message_id is not None:
         query = query.filter(ChatMessage.id != exclude_message_id)
@@ -43,7 +43,7 @@ def get_restore_history(db: Session, complaint_id: int, exclude_message_id: int 
     ]
 
 
-async def restore_ai_session(db: Session, complaint: Complaint, exclude_message_id: int | None = None) -> str:
+async def restore_ai_session(db: Session, complaint: Complaint, exclude_message_id: Optional[int] = None) -> str:
     history_list = get_restore_history(
         db=db,
         complaint_id=complaint.id,
