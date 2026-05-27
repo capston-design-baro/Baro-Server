@@ -7,8 +7,8 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     name: str
-    address: str
-    phone_number: str
+    address: Optional[str] = None
+    phone_number: Optional[str] = None
 
     @field_validator('password')
     def validate_password(cls, v):
@@ -41,8 +41,8 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: str
-    address: str
-    phone_number: str
+    address: Optional[str] = None
+    phone_number: Optional[str] = None
     created_at: datetime
 
     @model_validator(mode='before')
