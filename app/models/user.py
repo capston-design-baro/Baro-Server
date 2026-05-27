@@ -10,8 +10,8 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(LargeBinary, nullable=False)  # 암호화
     password_hash = Column(String, nullable=False)
-    address = Column(LargeBinary, nullable=False)  # 암호화
-    phone_number = Column(LargeBinary, nullable=False)  # 암호화
+    address = Column(LargeBinary, nullable=True)  # 암호화
+    phone_number = Column(LargeBinary, nullable=True)  # 암호화
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
