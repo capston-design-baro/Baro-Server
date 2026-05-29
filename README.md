@@ -22,6 +22,8 @@ EC2: baro-backend (FastAPI)
 운영 배포 설정은 `Baro-Deploy` 레포의 `docker-compose.prod.yml`에서 관리합니다.
 `Baro-Server` 또는 `Baro-AI`의 배포 대상 브랜치에 push하면 각 레포의 GitHub Actions가 `Baro-Deploy` 배포 workflow를 호출하고, EC2에서 최신 코드를 pull한 뒤 컨테이너를 재빌드 및 재시작합니다.
 
+<img width="1460" height="507" alt="Slide 16_9 - 1" src="https://github.com/user-attachments/assets/f010ee8a-1173-4d12-a56a-2e56e758b85b" />
+
 ## 주요 기능
 
 - **인증**
