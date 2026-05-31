@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, LargeBinary, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, LargeBinary, Boolean, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -51,6 +51,8 @@ class Complaint(Base):
 
     # Baro-AI 세션 ID
     ai_session_id = Column(String, nullable=True)  # Baro-AI의 session_id
+    rag_keyword = Column(String, nullable=True)
+    rag_cases = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
