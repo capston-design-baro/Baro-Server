@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import json
 
 from app.database import get_db
 from app.models.user import User
@@ -22,12 +23,15 @@ from app.utils.address_parser import get_police_station_name
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 
-INTERNAL_BOOTSTRAP_MESSAGE = "위 사건 개요를 기반으로, 고소장 작성을 위해 필요한 정보를 단계적으로 질문해 주세요."
+INTERNAL_BOOTSTRAP_MESSAGES = {
+    "위 사건 개요를 기반으로, 이어서 질문을 해 주세요.",
+    "위 사건 개요를 기반으로, 고소장 작성을 위해 필요한 정보를 단계적으로 질문해 주세요.",
+}
 
 
 def is_internal_chat_message(content: str) -> bool:
     """프론트가 첫 질문 생성을 위해 보내는 내부 메시지는 사용자 히스토리에서 제외한다."""
-    return (content or "").strip() == INTERNAL_BOOTSTRAP_MESSAGE
+    return (content or "").strip() in INTERNAL_BOOTSTRAP_MESSAGES
 
 
 def get_restore_history(db: Session, complaint_id: int, exclude_message_id: Optional[int] = None):
@@ -35,7 +39,7 @@ def get_restore_history(db: Session, complaint_id: int, exclude_message_id: Opti
     if exclude_message_id is not None:
         query = query.filter(ChatMessage.id != exclude_message_id)
 
-    messages = query.order_by(ChatMessage.created_at.asc()).all()
+    messages = query.order_by(ChatMessage.id.asc()).all()
     return [
         {"role": msg.role, "content": msg.content}
         for msg in messages
@@ -217,6 +221,8 @@ async def init_chat_session(
     # 3. Complaint 업데이트 (crime_type, ai_session_id 설정)
     complaint.crime_type = offense
     complaint.ai_session_id = session_id
+    complaint.rag_keyword = rag_keyword
+    complaint.rag_cases = rag_cases_data
 
     # 4. 사용자의 첫 메시지 저장
     user_message = ChatMessage(
@@ -227,25 +233,10 @@ async def init_chat_session(
     db.add(user_message)
     db.flush()  # user_message를 DB에 반영하여 다음 sequence 계산 가능하게
 
-    # 5. AI 응답 메시지 저장 (offense, rag_keyword, rag_cases를 JSON으로 저장)
-    import json
-    ai_response_content = json.dumps({
-        "offense": offense,
-        "rag_keyword": rag_keyword,
-        "rag_cases": rag_cases_data
-    }, ensure_ascii=False)
-
-    assistant_message = ChatMessage(
-        complaint_id=complaint_id,
-        role="assistant",
-        content=ai_response_content
-    )
-    db.add(assistant_message)
-
     db.commit()
     db.refresh(complaint)
 
-    # 6. 응답 (죄목 + 판례)
+    # 5. 응답 (죄목 + 판례)
     rag_cases = [RagCase(**case) for case in rag_cases_data]
 
     return ChatInitResponse(
@@ -428,17 +419,44 @@ def get_chat_history(
     if not complaint:
         raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
 
-    # 2. 해당 complaint의 모든 채팅 메시지 조회 (시간순 정렬)
+    # 2. 해당 complaint의 모든 채팅 메시지 조회 (저장 순서 정렬)
     messages = db.query(ChatMessage).filter(
         ChatMessage.complaint_id == complaint_id
-    ).order_by(ChatMessage.created_at.asc()).all()
+    ).order_by(ChatMessage.id.asc()).all()
+
+    fallback_meta = None
+    meta_message_ids = set()
+    for message in messages:
+        if message.role != "assistant":
+            continue
+        try:
+            parsed = json.loads(message.content)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(parsed, dict) and any(key in parsed for key in ("offense", "rag_keyword", "rag_cases")):
+            meta_message_ids.add(message.id)
+            if fallback_meta is None:
+                fallback_meta = parsed
+
     messages = [
         message
         for message in messages
-        if not (message.role == "user" and is_internal_chat_message(message.content))
+        if message.id not in meta_message_ids
+        and not (message.role == "user" and is_internal_chat_message(message.content))
     ]
 
-    return ChatHistoryResponse(messages=messages)
+    rag_cases_data = complaint.rag_cases
+    if not rag_cases_data and fallback_meta:
+        rag_cases_data = fallback_meta.get("rag_cases") or []
+
+    rag_cases = [RagCase(**case) for case in (rag_cases_data or [])]
+
+    return ChatHistoryResponse(
+        messages=messages,
+        offense=complaint.crime_type or (fallback_meta or {}).get("offense"),
+        rag_keyword=complaint.rag_keyword or (fallback_meta or {}).get("rag_keyword"),
+        rag_cases=rag_cases,
+    )
 
 @router.post("/{complaint_id}/generate", response_model=ComplaintGenerateResponse)
 async def generate_complaint(

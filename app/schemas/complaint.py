@@ -107,6 +107,9 @@ class ChatMessageResponse(BaseModel):
 
 class ChatHistoryResponse(BaseModel):
     messages: List[ChatMessageResponse]
+    offense: Optional[str] = None
+    rag_keyword: Optional[str] = None
+    rag_cases: List[RagCase] = Field(default_factory=list)
 
 class ChatResponse(BaseModel):
     reply: str  # AI 응답 메시지
