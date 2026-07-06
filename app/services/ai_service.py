@@ -1,6 +1,6 @@
 """Baro-AI 서비스 호출 클라이언트"""
 import httpx
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.config import settings
 
 
@@ -17,12 +17,13 @@ class BaroAIService:
         error_msg = str(error)
         return "세션을 찾을 수 없습니다" in error_msg or "404" in error_msg
 
-    async def chat_init(self, text: str) -> Dict[str, Any]:
+    async def chat_init(self, text: str, offense: Optional[str] = None) -> Dict[str, Any]:
         """
         Baro-AI 채팅 세션 초기화 (사건개요 기반)
 
         Args:
             text: 사건 개요
+            offense: 프론트에서 선택한 범죄 유형
 
         Returns:
             {
@@ -41,10 +42,14 @@ class BaroAIService:
             }
         """
         try:
+            payload = {"text": text}
+            if offense:
+                payload["offense"] = offense
+
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
                     f"{self.base_url}/chat/init",
-                    json={"text": text}
+                    json=payload
                 )
                 response.raise_for_status()
                 return response.json()
