@@ -7,6 +7,7 @@ from app.services.encryption_service import encryption_service
 # 채팅 초기화 요청 (사건개요 입력)
 class ChatInitRequest(BaseModel):
     text: str  # 사건 개요
+    offense: Optional[str] = None  # 프론트에서 선택한 범죄 유형
 
 # RAG 판례 정보
 class RagCase(BaseModel):

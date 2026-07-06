@@ -207,7 +207,10 @@ async def init_chat_session(
 
     # 2. Baro-AI 채팅 세션 초기화 (사건개요 전송)
     try:
-        ai_response = await ai_service.chat_init(request.text)
+        ai_response = await ai_service.chat_init(
+            text=request.text,
+            offense=request.offense
+        )
         session_id = ai_response.get("session_id")
         offense = ai_response.get("offense")
         rag_keyword = ai_response.get("rag_keyword")
