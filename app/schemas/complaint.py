@@ -21,8 +21,15 @@ class RagCase(BaseModel):
 class ChatInitResponse(BaseModel):
     session_id: str  # Baro-AI 세션 ID
     offense: str  # AI가 자동 판단한 죄목 ("fraud", "insult")
-    rag_keyword: str  # 추정된 범죄 키워드
-    rag_cases: List[RagCase]  # 유사 판례 2건
+    rag_status: str = "ready"  # pending | ready | failed
+    rag_keyword: Optional[str] = None  # 추정된 범죄 키워드
+    rag_cases: List[RagCase] = Field(default_factory=list)  # 유사 판례 2건
+
+class ChatRagResponse(BaseModel):
+    session_id: str
+    rag_status: str
+    rag_keyword: Optional[str] = None
+    rag_cases: List[RagCase] = Field(default_factory=list)
 
 # 고소장 시작 (deprecated - ChatInitRequest로 대체)
 class ComplaintCreate(BaseModel):
@@ -109,6 +116,7 @@ class ChatMessageResponse(BaseModel):
 class ChatHistoryResponse(BaseModel):
     messages: List[ChatMessageResponse]
     offense: Optional[str] = None
+    rag_status: str = "pending"
     rag_keyword: Optional[str] = None
     rag_cases: List[RagCase] = Field(default_factory=list)
 

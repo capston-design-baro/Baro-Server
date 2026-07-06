@@ -13,7 +13,7 @@ from app.schemas.complaint import (
     ComplaintUpdate, ComplaintGenerateRequest, ComplaintGenerateResponse,
     ChatMessageCreate, ChatResponse, ComplainantInfoCreate, AccusedInfoCreate,
     RelatedCasesCreate, EvidenceCreate, ChatInitRequest, ChatInitResponse, RagCase,
-    ChatMessageResponse, ChatHistoryResponse
+    ChatMessageResponse, ChatHistoryResponse, ChatRagResponse
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
@@ -32,6 +32,17 @@ INTERNAL_BOOTSTRAP_MESSAGES = {
 def is_internal_chat_message(content: str) -> bool:
     """프론트가 첫 질문 생성을 위해 보내는 내부 메시지는 사용자 히스토리에서 제외한다."""
     return (content or "").strip() in INTERNAL_BOOTSTRAP_MESSAGES
+
+
+def normalize_rag_status(
+    value: Optional[str],
+    rag_cases: Optional[list] = None,
+    rag_keyword: Optional[str] = None
+) -> str:
+    status_value = (value or "").strip().lower()
+    if status_value in {"pending", "ready", "failed"}:
+        return status_value
+    return "ready" if rag_cases or rag_keyword else "pending"
 
 
 def get_restore_history(db: Session, complaint_id: int, exclude_message_id: Optional[int] = None):
@@ -213,6 +224,11 @@ async def init_chat_session(
         )
         session_id = ai_response.get("session_id")
         offense = ai_response.get("offense")
+        rag_status = normalize_rag_status(
+            ai_response.get("rag_status"),
+            ai_response.get("rag_cases"),
+            ai_response.get("rag_keyword")
+        )
         rag_keyword = ai_response.get("rag_keyword")
         rag_cases_data = ai_response.get("rag_cases", [])
     except Exception as e:
@@ -245,6 +261,7 @@ async def init_chat_session(
     return ChatInitResponse(
         session_id=session_id,
         offense=offense,
+        rag_status=rag_status,
         rag_keyword=rag_keyword,
         rag_cases=rag_cases
     )
@@ -453,12 +470,68 @@ def get_chat_history(
         rag_cases_data = fallback_meta.get("rag_cases") or []
 
     rag_cases = [RagCase(**case) for case in (rag_cases_data or [])]
+    rag_keyword = complaint.rag_keyword or (fallback_meta or {}).get("rag_keyword")
+    rag_status = normalize_rag_status(
+        (fallback_meta or {}).get("rag_status"),
+        rag_cases_data,
+        rag_keyword
+    )
 
     return ChatHistoryResponse(
         messages=messages,
         offense=complaint.crime_type or (fallback_meta or {}).get("offense"),
-        rag_keyword=complaint.rag_keyword or (fallback_meta or {}).get("rag_keyword"),
+        rag_status=rag_status,
+        rag_keyword=rag_keyword,
         rag_cases=rag_cases,
+    )
+
+@router.get("/{complaint_id}/chat/rag", response_model=ChatRagResponse)
+async def get_chat_rag(
+    complaint_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Baro-AI의 비동기 RAG 처리 상태를 조회하고 완료 결과를 DB에 반영한다."""
+
+    complaint = db.query(Complaint).filter(
+        Complaint.id == complaint_id,
+        Complaint.user_id == current_user.id
+    ).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
+
+    if not complaint.ai_session_id:
+        raise HTTPException(status_code=400, detail="AI 세션이 초기화되지 않았습니다")
+
+    try:
+        rag_response = await ai_service.get_chat_rag(complaint.ai_session_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"AI RAG 조회 실패: {str(e)}"
+        )
+
+    rag_cases_data = rag_response.get("rag_cases") or []
+    rag_keyword = rag_response.get("rag_keyword")
+    rag_status = normalize_rag_status(
+        rag_response.get("rag_status"),
+        rag_cases_data,
+        rag_keyword
+    )
+
+    if rag_status == "ready":
+        complaint.rag_keyword = rag_keyword
+        complaint.rag_cases = rag_cases_data
+        db.commit()
+
+    rag_cases = [RagCase(**case) for case in rag_cases_data]
+
+    return ChatRagResponse(
+        session_id=complaint.ai_session_id,
+        rag_status=rag_status,
+        rag_keyword=rag_keyword,
+        rag_cases=rag_cases
     )
 
 @router.post("/{complaint_id}/generate", response_model=ComplaintGenerateResponse)

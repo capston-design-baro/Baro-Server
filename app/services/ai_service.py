@@ -29,6 +29,7 @@ class BaroAIService:
             {
                 "session_id": str,
                 "offense": str,  # AI가 자동 판단한 죄목
+                "rag_status": str,  # RAG 처리 상태
                 "rag_keyword": str,  # 추정된 범죄 키워드
                 "rag_cases": [  # 유사 판례
                     {
@@ -67,6 +68,41 @@ class BaroAIService:
             raise RuntimeError("Baro-AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
         except Exception as e:
             raise RuntimeError(f"예상치 못한 오류: {str(e)}")
+
+    async def get_chat_rag(self, session_id: str) -> Dict[str, Any]:
+        """
+        Baro-AI 채팅 세션의 RAG 처리 상태 및 판례 결과 조회
+
+        Args:
+            session_id: Baro-AI 세션 ID
+
+        Returns:
+            {
+                "session_id": str,
+                "rag_status": str,  # pending | ready | failed
+                "rag_keyword": str | None,
+                "rag_cases": [...]
+            }
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(f"{self.base_url}/chat/rag/{session_id}")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = "Baro-AI RAG 조회 오류"
+            try:
+                error_body = e.response.json()
+                error_detail = error_body.get("detail", str(error_body))
+            except:
+                error_detail = e.response.text or str(e)
+            raise RuntimeError(f"Baro-AI RAG 조회 오류 ({e.response.status_code}): {error_detail}")
+        except httpx.TimeoutException:
+            raise RuntimeError("Baro-AI RAG 조회 응답 시간 초과")
+        except httpx.ConnectError:
+            raise RuntimeError("Baro-AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
+        except Exception as e:
+            raise RuntimeError(f"예상치 못한 RAG 조회 오류: {str(e)}")
 
     async def chat_send(self, session_id: str, message: str) -> Dict[str, Any]:
         """
