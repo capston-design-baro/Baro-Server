@@ -119,6 +119,9 @@ class ChatHistoryResponse(BaseModel):
     rag_status: str = "pending"
     rag_keyword: Optional[str] = None
     rag_cases: List[RagCase] = Field(default_factory=list)
+    next_cursor: Optional[int] = None
+    has_more: bool = False
+    limit: Optional[int] = None
 
 class ChatResponse(BaseModel):
     reply: str  # AI 응답 메시지

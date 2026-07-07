@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import not_
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
@@ -32,6 +33,84 @@ INTERNAL_BOOTSTRAP_MESSAGES = {
 def is_internal_chat_message(content: str) -> bool:
     """프론트가 첫 질문 생성을 위해 보내는 내부 메시지는 사용자 히스토리에서 제외한다."""
     return (content or "").strip() in INTERNAL_BOOTSTRAP_MESSAGES
+
+
+def is_meta_chat_message(message: ChatMessage) -> bool:
+    """화면 표시용 메시지에서 제외할 assistant 메타 메시지 여부를 판별한다."""
+    if message.role != "assistant":
+        return False
+    try:
+        parsed = json.loads(message.content)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return isinstance(parsed, dict) and any(
+        key in parsed for key in ("offense", "rag_keyword", "rag_cases")
+    )
+
+
+def get_fallback_chat_meta(messages: list[ChatMessage]) -> tuple[Optional[dict], set[int]]:
+    fallback_meta = None
+    meta_message_ids = set()
+    for message in messages:
+        if not is_meta_chat_message(message):
+            continue
+        meta_message_ids.add(message.id)
+        if fallback_meta is None:
+            try:
+                fallback_meta = json.loads(message.content)
+            except (TypeError, json.JSONDecodeError):
+                fallback_meta = None
+    return fallback_meta, meta_message_ids
+
+
+def build_visible_chat_query(db: Session, complaint_id: int):
+    query = db.query(ChatMessage).filter(ChatMessage.complaint_id == complaint_id)
+    if INTERNAL_BOOTSTRAP_MESSAGES:
+        query = query.filter(
+            not_(
+                (ChatMessage.role == "user")
+                & (ChatMessage.content.in_(tuple(INTERNAL_BOOTSTRAP_MESSAGES)))
+            )
+        )
+    return query
+
+
+def get_paginated_chat_messages(
+    db: Session,
+    complaint_id: int,
+    limit: Optional[int],
+    before_id: Optional[int],
+) -> tuple[list[ChatMessage], Optional[int], bool, Optional[dict]]:
+    if limit is None:
+        messages = db.query(ChatMessage).filter(
+            ChatMessage.complaint_id == complaint_id
+        ).order_by(ChatMessage.id.asc()).all()
+        fallback_meta, meta_message_ids = get_fallback_chat_meta(messages)
+        visible_messages = [
+            message
+            for message in messages
+            if message.id not in meta_message_ids
+            and not (message.role == "user" and is_internal_chat_message(message.content))
+        ]
+        return visible_messages, None, False, fallback_meta
+
+    query = build_visible_chat_query(db, complaint_id)
+    if before_id is not None:
+        query = query.filter(ChatMessage.id < before_id)
+
+    fetched = query.order_by(ChatMessage.id.desc()).limit(limit + 1).all()
+    fallback_meta, meta_message_ids = get_fallback_chat_meta(fetched)
+    visible_desc = [
+        message
+        for message in fetched
+        if message.id not in meta_message_ids
+    ]
+
+    has_more = len(fetched) > limit or len(visible_desc) > limit
+    page_desc = visible_desc[:limit]
+    next_cursor = page_desc[-1].id if has_more and page_desc else None
+
+    return list(reversed(page_desc)), next_cursor, has_more, fallback_meta
 
 
 def normalize_rag_status(
@@ -425,6 +504,8 @@ async def send_chat_message(
 @router.get("/{complaint_id}/chat/history", response_model=ChatHistoryResponse)
 def get_chat_history(
     complaint_id: int,
+    limit: Optional[int] = Query(default=None, ge=1, le=100),
+    before_id: Optional[int] = Query(default=None, ge=1),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -439,31 +520,13 @@ def get_chat_history(
     if not complaint:
         raise HTTPException(status_code=404, detail="고소장을 찾을 수 없습니다")
 
-    # 2. 해당 complaint의 모든 채팅 메시지 조회 (저장 순서 정렬)
-    messages = db.query(ChatMessage).filter(
-        ChatMessage.complaint_id == complaint_id
-    ).order_by(ChatMessage.id.asc()).all()
-
-    fallback_meta = None
-    meta_message_ids = set()
-    for message in messages:
-        if message.role != "assistant":
-            continue
-        try:
-            parsed = json.loads(message.content)
-        except (TypeError, json.JSONDecodeError):
-            continue
-        if isinstance(parsed, dict) and any(key in parsed for key in ("offense", "rag_keyword", "rag_cases")):
-            meta_message_ids.add(message.id)
-            if fallback_meta is None:
-                fallback_meta = parsed
-
-    messages = [
-        message
-        for message in messages
-        if message.id not in meta_message_ids
-        and not (message.role == "user" and is_internal_chat_message(message.content))
-    ]
+    # 2. 화면 표시용 채팅 메시지 조회. limit이 없으면 기존 전체 조회 동작을 유지한다.
+    messages, next_cursor, has_more, fallback_meta = get_paginated_chat_messages(
+        db=db,
+        complaint_id=complaint_id,
+        limit=limit,
+        before_id=before_id,
+    )
 
     rag_cases_data = complaint.rag_cases
     if not rag_cases_data and fallback_meta:
@@ -483,6 +546,9 @@ def get_chat_history(
         rag_status=rag_status,
         rag_keyword=rag_keyword,
         rag_cases=rag_cases,
+        next_cursor=next_cursor,
+        has_more=has_more,
+        limit=limit,
     )
 
 @router.get("/{complaint_id}/chat/rag", response_model=ChatRagResponse)
